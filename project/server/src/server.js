@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import pdfParse from 'pdf-parse';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './utils/fileStorage.js';
 // Removed unused vertex.js service
