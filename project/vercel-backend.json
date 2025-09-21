@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "name": "runagen-ai-backend",
+  "builds": [
+    {
+      "src": "server/package.json",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server/src/server.js"
+    }
+  ],
+  "env": {
+    "MONGODB_URI": "@mongodb_uri",
+    "GOOGLE_API_KEY": "@google_api_key",
+    "NODE_ENV": "production"
+  }
+}
+
+

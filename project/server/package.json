@@ -1,0 +1,29 @@
+{
+  "name": "resume-analysis-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "build": "echo 'No build step required for Node.js'",
+    "test": "node --test",
+    "analyze": "node resume-analyzer.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "form-data": "^4.0.4",
+    "mime-types": "^2.1.35",
+    "mongo": "^0.1.0",
+    "mongodb": "^6.19.0",
+    "mongoose": "^8.18.1",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "usetube": "^2.2.7"
+  }
+}

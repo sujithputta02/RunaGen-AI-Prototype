@@ -1,0 +1,13 @@
+{
+  "Data Scientist": {
+    "skills": ["Python", "SQL", "Machine Learning", "Deep Learning", "Data Visualization", "Statistics", "Pandas", "NumPy", "TensorFlow", "PyTorch", "MLOps", "Docker", "Kubernetes", "Cloud Platforms"]
+  },
+  "Software Engineer": {
+    "skills": ["JavaScript", "TypeScript", "React", "Node.js", "APIs", "Databases", "Testing", "CI/CD", "Docker", "Cloud"]
+  },
+  "Cloud Engineer": {
+    "skills": ["AWS", "GCP", "Azure", "Terraform", "Kubernetes", "Networking", "Security", "Monitoring", "CI/CD"]
+  }
+}
+
+
