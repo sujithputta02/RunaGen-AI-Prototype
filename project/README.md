@@ -128,15 +128,15 @@ This project demonstrates the power of Google Cloud's Generative AI services, sp
 
 3. **Install backend dependencies**
    ```bash
-   cd server
+   cd project/server
    npm install
-   cd ..
+   cd ../..
    ```
 
 4. **Configure environment variables**
    ```bash
    # Create .env file in server directory
-   cp server/.env.example server/.env
+   cp project/server/.env.example project/server/.env
    
    # Add your credentials:
    # GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account.json
@@ -147,10 +147,11 @@ This project demonstrates the power of Google Cloud's Generative AI services, sp
 5. **Start the application**
    ```bash
    # Terminal 1: Start backend
-   cd server
+   cd project/server
    npm start
    
    # Terminal 2: Start frontend
+   cd project
    npm run dev
    ```
 

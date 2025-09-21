@@ -3,14 +3,14 @@
   "name": "runagen-ai-backend",
   "builds": [
     {
-      "src": "server/package.json",
+      "src": "project/server/package.json",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/src/server.js"
+      "dest": "/project/server/src/server.js"
     }
   ],
   "env": {
