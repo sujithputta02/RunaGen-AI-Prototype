@@ -131,7 +131,7 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
           >
             <Play className="h-5 w-5" />
             <span>Choose Mode</span>
-            <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4" />
           </button>
         </div>
       </div>

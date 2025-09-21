@@ -1,0 +1,38 @@
+# Environment Variables for RunaGen AI Project
+# Copy these to your .env file and update with your actual values
+
+# ===========================================
+# FRONTEND ENVIRONMENT VARIABLES
+# ===========================================
+VITE_API_URL=http://localhost:3001
+
+# ===========================================
+# BACKEND ENVIRONMENT VARIABLES
+# ===========================================
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+GOOGLE_API_KEY=your_gemini_api_key_here
+NODE_ENV=development
+PORT=3001
+
+# ===========================================
+# OPTIONAL VARIABLES
+# ===========================================
+# YouTube API (if you want to use YouTube features)
+YOUTUBE_API_KEY=your_youtube_api_key_here
+
+# Additional MongoDB settings
+MONGODB_DATABASE=runagen_ai
+MONGODB_COLLECTION=simulations
+
+# ===========================================
+# PRODUCTION ENVIRONMENT VARIABLES (for Vercel)
+# ===========================================
+# When deploying to Vercel, set these in the Vercel dashboard:
+
+# For Backend Project:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+# GOOGLE_API_KEY=your_actual_gemini_key
+# NODE_ENV=production
+
+# For Frontend Project:
+# VITE_API_URL=https://your-backend-project.vercel.app
