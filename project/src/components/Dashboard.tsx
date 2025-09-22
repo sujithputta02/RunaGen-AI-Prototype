@@ -14,6 +14,8 @@ import { SimulationCard } from './SimulationCard';
 import SkillLearningModal from './SkillLearningModal';
 import SkillsGapAnalysis from './SkillsGapAnalysis';
 
+const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+
 interface Badge {
   id: string;
   name: string;
