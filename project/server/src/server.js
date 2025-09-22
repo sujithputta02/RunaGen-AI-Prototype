@@ -3651,8 +3651,8 @@ app.get('/test-youtube-service', async (req, res) => {
 // For Vercel deployment
 
 if (process.env.NODE_ENV === 'production') {
-  // Vercel serverless environment
-  module.exports = app;
+  // Export app for serverless/platform handlers
+  export default app;
 } else {
   // Local development
   app.listen(PORT, () => {
