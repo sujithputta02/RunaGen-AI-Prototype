@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import multer from 'multer';
 import fs from 'fs/promises';
 import path from 'path';
-import pdfParse from 'pdf-parse';
 import { fileURLToPath } from 'url';
 import { fileStorage } from './utils/fileStorage.js';
 // Removed unused vertex.js service
@@ -987,7 +986,7 @@ app.post('/test-pdf-parsing', upload.single('file'), async (req, res) => {
           if (msg.includes('TT: undefined function')) return;
           return originalWarn.apply(console, args);
         };
-        const data = await pdfParse(await fs.readFile(filePath));
+        const data = await (await import('pdf-parse')).default(await fs.readFile(filePath));
         resumeText = data.text.replace(/\s+\n/g, '\n').trim();
       } finally {
         console.warn = originalWarn;
@@ -1072,7 +1071,7 @@ app.post('/auto-detect-role', upload.single('file'), async (req, res) => {
           if (msg.includes('TT: undefined function')) return;
           return originalWarn.apply(console, args);
         };
-        const data = await pdfParse(await fs.readFile(filePath));
+        const data = await (await import('pdf-parse')).default(await fs.readFile(filePath));
         resumeText = data.text.replace(/\s+\n/g, '\n').trim();
       } finally {
         console.warn = originalWarn;
@@ -1132,7 +1131,7 @@ app.post('/upload_resume', upload.single('file'), async (req, res) => {
           if (msg.includes('TT: undefined function')) return; // ignore font warnings
           return originalWarn.apply(console, args);
         };
-        const data = await pdfParse(await fs.readFile(filePath));
+        const data = await (await import('pdf-parse')).default(await fs.readFile(filePath));
         resumeText = data.text.replace(/\s+\n/g, '\n').trim();
         console.log('PDF parsed successfully. Text length:', resumeText.length);
         console.log('First 500 characters of parsed text:', resumeText.substring(0, 500));
@@ -1287,7 +1286,7 @@ app.post('/analyze-file', upload.single('file'), async (req, res) => {
     // Enhanced file parsing based on type
     if (fileExtension === '.pdf') {
       try {
-        const data = await pdfParse(await fs.readFile(filePath));
+        const data = await (await import('pdf-parse')).default(await fs.readFile(filePath));
         fileContent = data.text.replace(/\s+\n/g, '\n').trim();
         fileType = 'pdf';
       } catch (error) {
