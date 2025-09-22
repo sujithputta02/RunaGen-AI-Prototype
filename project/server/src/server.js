@@ -3652,8 +3652,8 @@ app.get('/test-youtube-service', async (req, res) => {
 
 export default app;
 
-if (process.env.NODE_ENV !== 'production') {
-  // Local development
+// Start HTTP listener when running locally OR in container hosts like Render
+if (process.env.NODE_ENV !== 'production' || process.env.RENDER || process.env.RUN_IN_CONTAINER === 'true') {
   app.listen(PORT, () => {
     console.log(`🚀 Server listening on port ${PORT}`);
     console.log(`📊 Persistence mode: ${persistenceMode}`);
