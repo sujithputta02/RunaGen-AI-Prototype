@@ -1,0 +1,16 @@
+[build]
+  base = "project"
+  command = "npm install && npm run build"
+  publish = "project/dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[context.production]
+  command = "npm ci && npm run build"
+
+# Redirect all routes to index.html for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
