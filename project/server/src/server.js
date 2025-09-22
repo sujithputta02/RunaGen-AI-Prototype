@@ -3650,15 +3650,13 @@ app.get('/test-youtube-service', async (req, res) => {
 
 // For Vercel deployment
 
-if (process.env.NODE_ENV === 'production') {
-  // Export app for serverless/platform handlers
-  export default app;
-} else {
+export default app;
+
+if (process.env.NODE_ENV !== 'production') {
   // Local development
   app.listen(PORT, () => {
     console.log(`🚀 Server listening on port ${PORT}`);
     console.log(`📊 Persistence mode: ${persistenceMode}`);
-    console.log(`🌐 API endpoints available at http://localhost:${PORT}`);
   });
 }
 
