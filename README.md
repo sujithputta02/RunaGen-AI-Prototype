@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="project/public/runagen ai sv.svg" alt="RunaGen AI Logo" width="200" height="200">
+</div>
+
 # 🚀 RunaGen AI Career Companion
 ## Google Cloud Gen AI Exchange Hackathon 2025
 
