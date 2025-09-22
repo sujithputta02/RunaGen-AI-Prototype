@@ -17,7 +17,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "faiss-node": "^0.5.0",
     "form-data": "^4.0.4",
     "mime-types": "^2.1.35",
     "mongo": "^0.1.0",
