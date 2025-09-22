@@ -56,7 +56,7 @@ project/
    - Import your repository
    - **Project Name**: `runagen-ai-backend`
    - **Framework Preset**: Other
-   - **Root Directory**: `./server`
+   - **Root Directory**: `./project/server`
    - **Build Command**: `npm run build`
    - **Output Directory**: Leave empty
    - **Install Command**: `npm install`
@@ -82,7 +82,7 @@ project/
    - Import the same repository
    - **Project Name**: `runagen-ai-frontend`
    - **Framework Preset**: Vite
-   - **Root Directory**: `./` (leave as is)
+   - **Root Directory**: `./project` (frontend located in `project/`)
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
    - **Install Command**: `npm install`
@@ -139,14 +139,14 @@ Update your frontend to use the production backend URL:
   "name": "runagen-ai-backend",
   "builds": [
     {
-      "src": "server/package.json",
+      "src": "project/server/package.json",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/src/server.js"
+      "dest": "/project/server/src/server.js"
     }
   ]
 }
