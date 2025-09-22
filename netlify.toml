@@ -6,6 +6,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--include=dev"
+  VITE_API_BASE = "https://justin-maternity-truck-housewares.trycloudflare.com"
 
 # Redirect all routes to index.html for SPA
 [[redirects]]
