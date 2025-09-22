@@ -2223,105 +2223,54 @@ Return ONLY valid JSON with this structure:
     
     const simulationText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // Parse JSON response with improved error handling
+    // Parse JSON response robustly by scanning for balanced structures
     const safeParse = (text) => {
       if (!text || typeof text !== 'string') {
         console.error('Invalid text input for JSON parsing');
         return null;
       }
 
-      try {
-        // First try to parse as-is
-        return JSON.parse(text);
-      } catch (e) {
+      // Remove code fences and trim noise
+      let cleaned = text.replace(/```(?:json)?/gi, '').trim();
+
+      // Fast path
+      try { return JSON.parse(cleaned); } catch (e) {
         console.error('JSON parse error:', e.message);
-        
-        // Clean the text by removing common issues
-        let cleanedText = text
-          .replace(/```json\n?/g, '') // Remove markdown code blocks
-          .replace(/```\n?/g, '') // Remove closing code blocks
-          .replace(/^\s*[\r\n]+/gm, '') // Remove empty lines
-          .replace(/\\n/g, '\\n') // Preserve escaped newlines
-          .replace(/\\t/g, '\\t') // Preserve escaped tabs
-          .replace(/\\"/g, '\\"') // Preserve escaped quotes
-          .trim();
-        
-        // Try to fix common unterminated string issues
-        cleanedText = cleanedText
-          .replace(/"\s*$/gm, '"') // Fix unterminated strings at end of lines
-          .replace(/"\s*,\s*$/gm, '",') // Fix missing commas after strings
-          .replace(/"\s*}\s*$/gm, '"}') // Fix missing quotes before closing braces
-          .replace(/"\s*]\s*$/gm, '"]'); // Fix missing quotes before closing brackets
-        
-        // Try parsing cleaned text
-        try {
-          return JSON.parse(cleanedText);
-        } catch (cleanError) {
-          console.error('Cleaned text parse error:', cleanError.message);
-          
-          // Try to extract JSON from the text with better bounds checking
-          const firstBrace = cleanedText.indexOf('{');
-          const lastBrace = cleanedText.lastIndexOf('}');
-          const firstBracket = cleanedText.indexOf('[');
-          const lastBracket = cleanedText.lastIndexOf(']');
-          
-          // Determine if it's an object or array
-          let start, end;
-          if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-            start = firstBrace;
-            end = lastBrace;
-          } else if (firstBracket !== -1) {
-            start = firstBracket;
-            end = lastBracket;
-          } else {
-            console.error('No valid JSON structure found');
-            return null;
-          }
-          
-          if (start === -1 || end === -1 || end <= start) {
-            console.error('Invalid JSON bounds');
-            return null;
-          }
-          
-          try {
-            const extracted = cleanedText.slice(start, end + 1);
-            console.log('Attempting to parse extracted JSON:', extracted.substring(0, 200) + '...');
-            
-            // Additional cleaning for extracted JSON
-            let finalJson = extracted
-              .replace(/([^\\])\\([^"\\\/bfnrt])/g, '$1\\\\$2') // Fix unescaped backslashes
-              .replace(/([^\\])\\([^"\\\/bfnrt])/g, '$1\\\\$2') // Double pass for nested issues
-              .replace(/"\s*$/gm, '"') // Fix unterminated strings
-              .replace(/"\s*,\s*$/gm, '",') // Fix missing commas
-              .replace(/"\s*}\s*$/gm, '"}') // Fix missing quotes before braces
-              .replace(/"\s*]\s*$/gm, '"]'); // Fix missing quotes before brackets
-            
-            return JSON.parse(finalJson);
-          } catch (extractError) {
-            console.error('Failed to extract JSON:', extractError.message);
-            console.error('Extracted text:', cleanedText.slice(start, end + 1).substring(0, 500));
-            
-            // Last resort: try to fix common JSON issues manually
-            try {
-              let lastResortJson = cleanedText.slice(start, end + 1);
-              // Fix common issues
-              lastResortJson = lastResortJson
-                .replace(/([^\\])\\([^"\\\/bfnrt])/g, '$1\\\\$2')
-                .replace(/"\s*$/gm, '"')
-                .replace(/"\s*,\s*$/gm, '",')
-                .replace(/"\s*}\s*$/gm, '"}')
-                .replace(/"\s*]\s*$/gm, '"]')
-                .replace(/,\s*}/g, '}') // Remove trailing commas before braces
-                .replace(/,\s*]/g, ']'); // Remove trailing commas before brackets
-              
-              return JSON.parse(lastResortJson);
-            } catch (lastResortError) {
-              console.error('Last resort JSON parsing failed:', lastResortError.message);
-              return null;
+      }
+
+      // Scanner that respects quotes and escapes for both objects and arrays
+      const tryScan = (openChar, closeChar) => {
+        let inString = false;
+        let escapeNext = false;
+        let depth = 0;
+        let start = -1;
+        for (let i = 0; i < cleaned.length; i++) {
+          const ch = cleaned[i];
+          if (escapeNext) { escapeNext = false; continue; }
+          if (ch === '\\') { if (inString) escapeNext = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === openChar) { if (depth === 0) start = i; depth++; continue; }
+          if (ch === closeChar) {
+            if (depth > 0) depth--;
+            if (depth === 0 && start !== -1) {
+              const candidate = cleaned.slice(start, i + 1);
+              try { return JSON.parse(candidate); } catch (_) { /* keep scanning */ }
             }
           }
         }
-      }
+        return null;
+      };
+
+      // Try scanning for object first, then array
+      const obj = tryScan('{', '}');
+      if (obj) return obj;
+      const arr = tryScan('[', ']');
+      if (arr) return arr;
+
+      // As a last attempt, remove trailing commas and retry
+      cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+      try { return JSON.parse(cleaned); } catch (_) { return null; }
     };
     
     const simulationData = safeParse(simulationText) || {

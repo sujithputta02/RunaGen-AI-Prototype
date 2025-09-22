@@ -763,8 +763,8 @@ const Dashboard: React.FC = () => {
                       key={sim.id}
                       className={
                         idx === 0 || idx === 1
-                          ? 'lg:col-span-6'
-                          : 'lg:col-span-6 lg:col-start-4'
+                          ? 'lg:col-span-8'
+                          : 'lg:col-span-8 lg:col-start-3'
                       }
                     >
                       <SimulationCard
