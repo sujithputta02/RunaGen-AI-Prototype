@@ -7,6 +7,60 @@ export class YouTubeService {
     this.baseUrl = 'https://www.googleapis.com/youtube/v3';
   }
 
+  // Extract YouTube videoId from a URL or return null
+  extractVideoId(url) {
+    try {
+      if (!url || typeof url !== 'string') return null;
+      const match = url.match(/[?&]v=([a-zA-Z0-9_-]{6,})/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Verify a YouTube URL via oEmbed; returns normalized URL if valid else null
+  async verifyYouTubeUrl(url) {
+    try {
+      const videoId = this.extractVideoId(url);
+      if (!videoId) return null;
+      const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+      const res = await fetch(oembedUrl);
+      if (res && res.ok) {
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Ensure a working YouTube URL for a given query and optional candidate
+  async ensureWorkingYouTubeUrl(query, candidateUrl) {
+    // 1) If candidate is valid, return normalized
+    const verified = await this.verifyYouTubeUrl(candidateUrl);
+    if (verified) return verified;
+
+    // 2) Try search with details
+    try {
+      const results = await this.searchVideosWithDetails(query, 1);
+      if (results && results.length > 0) {
+        const valid = await this.verifyYouTubeUrl(results[0].url);
+        if (valid) return valid;
+      }
+    } catch {}
+
+    // 3) Final fallback to mock, validated
+    try {
+      const mocks = this.getMockVideoResults(query).slice(0, 1);
+      if (mocks.length > 0) {
+        const valid = await this.verifyYouTubeUrl(mocks[0].url);
+        if (valid) return valid;
+      }
+    } catch {}
+
+    return candidateUrl || null;
+  }
+
   // Alternative search using usetube library (no API key required)
   async searchVideosAlternative(query, maxResults = 5) {
     try {

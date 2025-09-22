@@ -83,13 +83,20 @@ export class MentorService {
           const querySkill = actionCopy.skill || 'career planning';
           const query = `${querySkill} tutorial`;
           try {
-            const results = await this.youtube.searchVideosWithDetails(query, 1);
-            if (Array.isArray(results) && results.length > 0 && results[0].url) {
-              actionCopy.learn_link = results[0].url;
-            }
+            actionCopy.learn_link = await this.youtube.ensureWorkingYouTubeUrl(query, undefined);
           } catch {
             // Keep original or leave undefined if enrichment fails
           }
+        }
+        
+        // Validate existing candidate link if present
+        if (!isMissing && !isPlaceholder && !isNonEducational) {
+          try {
+            const querySkill = actionCopy.skill || 'career planning';
+            const query = `${querySkill} tutorial`;
+            const verified = await this.youtube.verifyYouTubeUrl(link);
+            actionCopy.learn_link = verified || await this.youtube.ensureWorkingYouTubeUrl(query, link);
+          } catch {}
         }
 
         validated.push(actionCopy);
