@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import pdfParse from 'pdf-parse';
 
 export async function parsePdfToText(filePath) {
   const buf = await fs.readFile(filePath);
