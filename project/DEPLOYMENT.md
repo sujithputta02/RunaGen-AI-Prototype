@@ -225,4 +225,45 @@ After deployment, you'll have:
 
 **Happy Deploying! 🚀**
 
+# Deployment
+
+## Dockerizing the Backend
+
+To run the backend without your local machine (e.g., behind Netlify frontend), build and run the container in `project/server`.
+
+### Build
+```bash
+cd project/server
+docker build -t runagen-backend:latest .
+```
+
+### Run (single container)
+```bash
+docker run -d \
+  --name runagen-backend \
+  -p 3001:3001 \
+  -e NODE_ENV=production \
+  -e PORT=3001 \
+  -e MONGODB_URI="<your_mongodb_uri>" \
+  -e VERTEX_PROJECT_ID="<gcp_project>" \
+  -e VERTEX_LOCATION="us-central1" \
+  -e YOUTUBE_API_KEY="<optional>" \
+  -v %cd%/career-companion-472510-7dd10b4d4dcb.json:/app/career-companion-472510-7dd10b4d4dcb.json:ro \
+  runagen-backend:latest
+```
+
+Windows PowerShell note: replace `%cd%` with the absolute path to `project/server`.
+
+### Run with docker-compose (local)
+```bash
+cd project/server
+MONGODB_URI="<your_mongodb_uri>" \
+VERTEX_PROJECT_ID="<gcp_project>" \
+VERTEX_LOCATION="us-central1" \
+YOUTUBE_API_KEY="" \
+docker compose up -d --build
+```
+
+Expose `http://<host>:3001` to your Netlify frontend via environment variable like `VITE_API_BASE`.
+
 
