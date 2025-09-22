@@ -32,12 +32,8 @@ const mentorConversationSchema = new mongoose.Schema({
         docId: String,
         snippet: String
       }],
-      actions: [{
-        type: String,
-        skill: String,
-        why: String,
-        learn_link: String
-      }],
+      // Allow flexibility: actions may be objects or strings from legacy data
+      actions: [mongoose.Schema.Types.Mixed],
       badges: [String]
     }
   }],

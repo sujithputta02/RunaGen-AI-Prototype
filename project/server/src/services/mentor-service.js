@@ -41,6 +41,31 @@ export class MentorService {
     this.initializeBadgeRules();
   }
 
+  // Normalize actions to an array of objects
+  normalizeActions(actions) {
+    try {
+      if (!actions) return [];
+      // If actions is a string, try to parse JSON
+      if (typeof actions === 'string') {
+        const parsed = JSON.parse(actions);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      }
+      // If it's a single object, wrap in array
+      if (!Array.isArray(actions)) {
+        return [actions];
+      }
+      // If array elements are strings, try to parse each
+      return actions.map(item => {
+        if (typeof item === 'string') {
+          try { return JSON.parse(item); } catch { return { note: item }; }
+        }
+        return item;
+      });
+    } catch {
+      return [];
+    }
+  }
+
   // Initialize badge rules engine
   initializeBadgeRules() {
     this.badgeRules.set('first_question', {
@@ -471,7 +496,7 @@ Instructions:
             confidence: assistantResponse.confidence,
             processingTime: assistantResponse.processingTime,
             sources: assistantResponse.sources,
-            actions: assistantResponse.actions,
+            actions: this.normalizeActions(assistantResponse.actions),
             badges: assistantResponse.badges
           }
         });
@@ -534,7 +559,7 @@ Instructions:
             confidence: assistantResponse.confidence,
             processingTime: assistantResponse.processingTime,
             sources: assistantResponse.sources,
-            actions: assistantResponse.actions,
+            actions: this.normalizeActions(assistantResponse.actions),
             badges: assistantResponse.badges
           }
         });
