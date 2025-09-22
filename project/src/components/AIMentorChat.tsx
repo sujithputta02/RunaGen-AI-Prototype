@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Send, Mic, Paperclip, Bot, Award, ExternalLink, Star, Clock, CheckCircle } from 'lucide-react';
 
+const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+
 type MentorMessage = {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -130,7 +132,7 @@ const AIMentorChat: React.FC = () => {
   // Function to load a specific conversation
   const loadConversation = async (sessionId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/conversation-history/${userId}?sessionId=${sessionId}`);
+      const response = await fetch(`${API_BASE}/conversation-history/${userId}?sessionId=${sessionId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.conversations.length > 0) {
@@ -175,7 +177,7 @@ const AIMentorChat: React.FC = () => {
 
   const callMentorAPI = async (message: string): Promise<MentorResponse> => {
     try {
-      const response = await fetch('http://localhost:3001/mentor', {
+      const response = await fetch(`${API_BASE}/mentor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +213,7 @@ const AIMentorChat: React.FC = () => {
     try {
       setLoadingHistory(true);
       console.log('Loading conversation history for user:', userId);
-      const response = await fetch(`http://localhost:3001/conversation-history/${userId}`);
+      const response = await fetch(`${API_BASE}/conversation-history/${userId}`);
       
       if (!response.ok) {
         console.error('Response not ok:', response.status, response.statusText);
@@ -241,7 +243,7 @@ const AIMentorChat: React.FC = () => {
   // Test server connection
   const testServerConnection = async () => {
     try {
-      const response = await fetch('http://localhost:3001/test-conversation-history');
+      const response = await fetch(`${API_BASE}/test-conversation-history`);
       const data = await response.json();
       console.log('Server test response:', data);
       const connected = data.success;
@@ -257,7 +259,7 @@ const AIMentorChat: React.FC = () => {
   // Test MongoDB connection
   const testMongoConnection = async () => {
     try {
-      const response = await fetch('http://localhost:3001/mongo-status');
+      const response = await fetch(`${API_BASE}/mongo-status`);
       const data = await response.json();
       console.log('MongoDB status response:', data);
       setMongoConnected(data.mongoConnected);
@@ -274,7 +276,7 @@ const AIMentorChat: React.FC = () => {
   // Search conversations
   const searchConversations = async (query: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/search-conversations/${userId}?query=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_BASE}/search-conversations/${userId}?query=${encodeURIComponent(query)}`);
       const data = await response.json();
       if (data.success) {
         setConversationHistory(data.results);
@@ -291,7 +293,7 @@ const AIMentorChat: React.FC = () => {
       formData.append('file', file);
       formData.append('analysisType', 'comprehensive');
 
-      const response = await fetch('http://localhost:3001/analyze-file', {
+      const response = await fetch(`${API_BASE}/analyze-file`, {
         method: 'POST',
         headers: {
           'x-user-id': userId

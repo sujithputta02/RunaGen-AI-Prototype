@@ -171,7 +171,7 @@ const Dashboard: React.FC = () => {
     
     // Automatically generate learning roadmap when resume analysis is completed
     try {
-      const response = await fetch('http://localhost:3001/generate-learning-roadmap', {
+      const response = await fetch(`${API_BASE}/generate-learning-roadmap`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ const Dashboard: React.FC = () => {
     
     setIsLoadingSimulations(true);
     try {
-      const response = await fetch('http://localhost:3001/generate-simulations', {
+      const response = await fetch(`${API_BASE}/generate-simulations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

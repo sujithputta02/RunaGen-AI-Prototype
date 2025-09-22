@@ -92,6 +92,8 @@ interface SkillsGapAnalysisProps {
   role?: string;
 }
 
+const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+
 const SkillsGapAnalysis: React.FC<SkillsGapAnalysisProps> = ({ skills, role = 'Data Analyst' }) => {
   const [selectedSkill, setSelectedSkill] = useState<SkillGap | null>(null);
   const [skillRoadmap, setSkillRoadmap] = useState<SkillRoadmap | null>(null);
@@ -101,7 +103,7 @@ const SkillsGapAnalysis: React.FC<SkillsGapAnalysisProps> = ({ skills, role = 'D
   const generateSkillRoadmap = async (skill: SkillGap) => {
     setIsGeneratingRoadmap(true);
     try {
-      const response = await fetch('http://localhost:3001/generate-skill-roadmap', {
+      const response = await fetch(`${API_BASE}/generate-skill-roadmap`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

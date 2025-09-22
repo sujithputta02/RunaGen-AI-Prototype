@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+
 const FullAnalysisModal: React.FC<{ id: string; onClose: () => void }> = ({ id, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
@@ -15,10 +17,9 @@ const FullAnalysisModal: React.FC<{ id: string; onClose: () => void }> = ({ id, 
           return;
         }
         
-        const url = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
-        console.log('Fetching analysis from:', `${url}/analysis/${id}`);
+        console.log('Fetching analysis from:', `${API_BASE}/analysis/${id}`);
         
-        const res = await fetch(`${url}/analysis/${id}`);
+        const res = await fetch(`${API_BASE}/analysis/${id}`);
         if (!res.ok) {
           const errorText = await res.text();
           console.error('API Error:', res.status, errorText);

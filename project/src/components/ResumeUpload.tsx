@@ -7,6 +7,8 @@ import {
 import FullAnalysisModal from './FullAnalysisModal';
 import YouTubeVideoCard from './YouTubeVideoCard';
 
+const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+
 interface SkillGap {
   skill: string;
   current: number;
@@ -59,7 +61,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onAnalysisComplete, onRoadm
   // Test server connection and templates
   const testServer = async () => {
     try {
-      const response = await fetch('http://localhost:3001/test-templates');
+      const response = await fetch(`${API_BASE}/test-templates`);
       const data = await response.json();
       console.log('Server test response:', data);
       alert(`Server is running! Available roles: ${data.available_roles.join(', ')}`);
@@ -72,7 +74,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onAnalysisComplete, onRoadm
   // Test job database
   const testJobDatabase = async () => {
     try {
-      const response = await fetch('http://localhost:3001/test-job-database');
+      const response = await fetch(`${API_BASE}/test-job-database`);
       const data = await response.json();
       console.log('Job database test response:', data);
       
@@ -93,7 +95,7 @@ Job Database Test Results:
   // Test YouTube service
   const testYouTubeService = async () => {
     try {
-      const response = await fetch('http://localhost:3001/test-youtube-service');
+      const response = await fetch(`${API_BASE}/test-youtube-service`);
       const data = await response.json();
       console.log('YouTube service test response:', data);
       
@@ -125,7 +127,7 @@ YouTube Service Test Results:
           const formData = new FormData();
           formData.append('file', uploadedFile);
           
-          const pdfResponse = await fetch('http://localhost:3001/test-pdf-parsing', {
+          const pdfResponse = await fetch(`${API_BASE}/test-pdf-parsing`, {
             method: 'POST',
             body: formData,
           });
@@ -157,7 +159,7 @@ YouTube Service Test Results:
       
       console.log('Testing job matches with role:', testRole, 'and skills:', testSkills);
       
-      const response = await fetch('http://localhost:3001/test-job-matching', {
+      const response = await fetch(`${API_BASE}/test-job-matching`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -201,7 +203,7 @@ ${data.job_matches.map((job: any) =>
       const formData = new FormData();
       formData.append('file', uploadedFile);
 
-      const response = await fetch('http://localhost:3001/test-pdf-parsing', {
+      const response = await fetch(`${API_BASE}/test-pdf-parsing`, {
         method: 'POST',
         body: formData,
       });
@@ -367,7 +369,7 @@ ${data.first_500_chars}
       form.append('target_role', selectedJobRole);
       console.log('Sending target_role:', selectedJobRole);
 
-      const url = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/upload_resume';
+      const url = `${API_BASE}/upload_resume`;
 
       const data: any = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -489,7 +491,7 @@ ${data.first_500_chars}
 
     setIsGeneratingRoadmap(true);
     try {
-      const response = await fetch('http://localhost:3001/generate-learning-roadmap', {
+      const response = await fetch(`${API_BASE}/generate-learning-roadmap`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -530,7 +532,7 @@ ${data.first_500_chars}
 
     setIsStartingSimulation(true);
     try {
-      const response = await fetch('http://localhost:3001/start-career-simulation', {
+      const response = await fetch(`${API_BASE}/start-career-simulation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
