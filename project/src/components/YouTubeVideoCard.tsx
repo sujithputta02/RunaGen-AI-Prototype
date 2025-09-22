@@ -25,6 +25,10 @@ const YouTubeVideoCard: React.FC<YouTubeVideoCardProps> = ({ video, compact = fa
     return count.toString();
   };
 
+  const computedUrl = video.url
+    || (video.videoId ? `https://www.youtube.com/watch?v=${video.videoId}` : undefined)
+    || (video.search_query ? `https://www.youtube.com/results?search_query=${encodeURIComponent(video.search_query)}` : undefined);
+
   if (compact) {
     return (
       <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm p-3 rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200">
@@ -54,9 +58,9 @@ const YouTubeVideoCard: React.FC<YouTubeVideoCardProps> = ({ video, compact = fa
               {video.duration}
             </span>
           )}
-          {video.url ? (
+          {computedUrl ? (
             <a
-              href={video.url}
+              href={computedUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
@@ -109,9 +113,9 @@ const YouTubeVideoCard: React.FC<YouTubeVideoCardProps> = ({ video, compact = fa
           </div>
         </div>
         
-        {video.url ? (
+        {computedUrl ? (
           <a
-            href={video.url}
+            href={computedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors duration-200"
