@@ -133,34 +133,38 @@ export class MentorService {
     });
   }
 
-  // Intent classification using few-shot learning
-  async classifyIntent(message) {
+  // Context-aware intent classification
+  async classifyIntent(message, conversationContext = [], previousIntent = 'general') {
+    const lastExchanges = conversationContext.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
     const prompt = `
-Classify the user's message into one of these categories:
-- resume_analysis: Questions about resume, skills, or career analysis
-- skill_suggestions: Asking for skill recommendations or learning paths
-- simulation: Requesting coding challenges, data analysis tasks, or skill assessments
-- interview_prep: Interview questions, preparation, or practice
-- career_guidance: General career advice, job search, or industry insights
-- general: Other questions or casual conversation
+You are classifying the user's intent with conversation context. Allowed categories:
+- resume_analysis, skill_suggestions, simulation, interview_prep, career_guidance, general
 
-Return only the category name.
+Rules:
+- If the message is a follow-up (e.g., "give more resources", "continue", "what next"), keep the previous intent.
+- If ambiguous, prefer the previous intent.
+- Only switch when the new message clearly indicates a different category.
 
-Message: "${message}"
-`;
+Previous intent: ${previousIntent}
+Recent conversation:
+${lastExchanges || '(none)'}
+
+User message: "${message}"
+
+Return only one category name from the list above.`;
 
     try {
       const result = await this.model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
+        generationConfig: { temperature: 0.1, maxOutputTokens: 30 }
       });
-      
       const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
       const validIntents = ['resume_analysis', 'skill_suggestions', 'simulation', 'interview_prep', 'career_guidance', 'general'];
-      return validIntents.includes(response) ? response : 'general';
+      if (validIntents.includes(response)) return response;
+      return previousIntent || 'general';
     } catch (error) {
       console.error('Intent classification failed:', error);
-      return 'general';
+      return previousIntent || 'general';
     }
   }
 
@@ -1012,10 +1016,11 @@ Return only valid JSON.`;
       options.sessionId = resolvedSessionId;
       
       // 1. Get conversation context for continuous memory
-      const conversationContext = await this.getConversationContext(userId, sessionId, 5);
+      const conversationContext = await this.getConversationContext(userId, sessionId, 8);
       
-      // 2. Classify intent with context awareness
-      const intent = await this.classifyIntent(message);
+      // 2. Classify intent with context awareness, biasing to previous intent if ambiguous
+      const previousIntent = conversationContext.reverse().find(m => m.role === 'assistant' && m.intent)?.intent || 'general';
+      const intent = await this.classifyIntent(message, conversationContext, previousIntent);
       
       // 3. Gather context including conversation history
       const contextSnippets = [];
@@ -1109,7 +1114,7 @@ Return only valid JSON.`;
       console.log(`Enhanced mentor request processed: user=${userId}, intent=${intent}, context=${conversationContext.length}, time=${processingTime}ms`);
       
       // Include resolved sessionId so client can continue the thread
-      return { ...response, sessionId: resolvedSessionId };
+      return { ...response, sessionId: resolvedSessionId, intent };
       
     } catch (error) {
       console.error('Enhanced mentor request processing failed:', error);
