@@ -371,4 +371,4 @@ For questions or issues:
 
 ---
 
-**Built with ❤️ for Google Cloud Gen AI Exchange Hackathon 2024**
+**Built with ❤️ for Google Cloud Gen AI Exchange Hackathon 2025**
