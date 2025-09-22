@@ -737,7 +737,22 @@ Instructions:
   // Get conversation context for continuous memory
   async getConversationContext(userId, sessionId, limit = 10) {
     try {
-      const conversation = await this.getConversationBySession(sessionId);
+      let conversation = null;
+      if (sessionId) {
+        conversation = await this.getConversationBySession(sessionId);
+      }
+      // Fallback: use user's most recent conversation if no session specified or not found
+      if (!conversation) {
+        try {
+          const recent = await MentorConversation.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(1)
+            .exec();
+          conversation = recent?.[0] || null;
+        } catch (_) {
+          conversation = null;
+        }
+      }
       if (!conversation) return [];
       
       // Get recent messages for context
@@ -975,6 +990,27 @@ Return only valid JSON.`;
     const startTime = Date.now();
     
     try {
+      // Determine a sessionId to ensure continuity
+      let resolvedSessionId = sessionId;
+      if (!resolvedSessionId || typeof resolvedSessionId !== 'string') {
+        // Try to reuse the latest session if it exists and is recent
+        try {
+          const recent = await MentorConversation.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(1)
+            .exec();
+          if (recent && recent.length > 0) {
+            resolvedSessionId = recent[0].sessionId;
+          }
+        } catch (_) {}
+      }
+      if (!resolvedSessionId) {
+        resolvedSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      }
+      // Use resolved session for the rest of the request
+      sessionId = resolvedSessionId;
+      options.sessionId = resolvedSessionId;
+      
       // 1. Get conversation context for continuous memory
       const conversationContext = await this.getConversationContext(userId, sessionId, 5);
       
@@ -1072,7 +1108,8 @@ Return only valid JSON.`;
       // 8. Log metrics
       console.log(`Enhanced mentor request processed: user=${userId}, intent=${intent}, context=${conversationContext.length}, time=${processingTime}ms`);
       
-      return response;
+      // Include resolved sessionId so client can continue the thread
+      return { ...response, sessionId: resolvedSessionId };
       
     } catch (error) {
       console.error('Enhanced mentor request processing failed:', error);
