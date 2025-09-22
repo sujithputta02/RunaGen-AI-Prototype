@@ -1,5 +1,6 @@
 import { VertexAI } from '@google-cloud/vertexai';
 import { RAGResumeAnalyzer } from './rag-service.js';
+import YouTubeService from './youtube-service.js';
 import { VectorStore } from '../../utils/vectorStore.js';
 import { getEmbedding } from '../../utils/embeddings.js';
 import MentorConversation from '../models/MentorConversation.js';
@@ -37,6 +38,7 @@ export class MentorService {
     
     this.ragAnalyzer = new RAGResumeAnalyzer();
     this.vectorStore = new VectorStore();
+    this.youtube = new YouTubeService();
     this.badgeRules = new Map();
     this.initializeBadgeRules();
   }
@@ -63,6 +65,38 @@ export class MentorService {
       });
     } catch {
       return [];
+    }
+  }
+
+  // Ensure each action has a valid, user-friendly learn_link
+  async ensureValidLearnLinks(actions) {
+    try {
+      const validated = [];
+      for (const action of Array.isArray(actions) ? actions : []) {
+        const actionCopy = { ...action };
+        const link = actionCopy.learn_link || '';
+        const isMissing = !link;
+        const isPlaceholder = typeof link === 'string' && /example\.com|localhost|127\.0\.0\.1/i.test(link);
+        const isNonEducational = typeof link === 'string' && /indeed\.com|linkedin\.com\/jobs/i.test(link);
+
+        if (isMissing || isPlaceholder || isNonEducational) {
+          const querySkill = actionCopy.skill || 'career planning';
+          const query = `${querySkill} tutorial`;
+          try {
+            const results = await this.youtube.searchVideosWithDetails(query, 1);
+            if (Array.isArray(results) && results.length > 0 && results[0].url) {
+              actionCopy.learn_link = results[0].url;
+            }
+          } catch {
+            // Keep original or leave undefined if enrichment fails
+          }
+        }
+
+        validated.push(actionCopy);
+      }
+      return validated;
+    } catch {
+      return Array.isArray(actions) ? actions : [];
     }
   }
 
@@ -293,7 +327,12 @@ Return only the scores in the format above.
       });
       
       const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return this.parseStructuredResponse(response, contextSnippets);
+      const parsed = this.parseStructuredResponse(response, contextSnippets);
+      // Enrich links if actions present
+      if (Array.isArray(parsed.actions) && parsed.actions.length > 0) {
+        parsed.actions = await this.ensureValidLearnLinks(this.normalizeActions(parsed.actions));
+      }
+      return parsed;
       
     } catch (error) {
       console.error('Mentor response generation failed:', error);
@@ -405,14 +444,7 @@ Instructions:
         docId: s.docId || 'unknown',
         snippet: (s.text || s.item || '').substring(0, 200)
       })),
-      actions: [
-        {
-          type: "suggest_skill",
-          skill: "Career Planning",
-          why: "Essential for professional growth",
-          learn_link: "https://example.com/career-planning"
-        }
-      ],
+      actions: [],
       badges: []
     };
   }
@@ -496,7 +528,7 @@ Instructions:
             confidence: assistantResponse.confidence,
             processingTime: assistantResponse.processingTime,
             sources: assistantResponse.sources,
-            actions: this.normalizeActions(assistantResponse.actions),
+            actions: await this.ensureValidLearnLinks(this.normalizeActions(assistantResponse.actions)),
             badges: assistantResponse.badges
           }
         });
@@ -559,7 +591,7 @@ Instructions:
             confidence: assistantResponse.confidence,
             processingTime: assistantResponse.processingTime,
             sources: assistantResponse.sources,
-            actions: this.normalizeActions(assistantResponse.actions),
+            actions: await this.ensureValidLearnLinks(this.normalizeActions(assistantResponse.actions)),
             badges: assistantResponse.badges
           }
         });
