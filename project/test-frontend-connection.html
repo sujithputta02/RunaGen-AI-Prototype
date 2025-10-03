@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend Connection</title>
+</head>
+<body>
+    <h1>Test Frontend to Backend Connection</h1>
+    <button onclick="testConnection()">Test API Connection</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            const API_BASE = 'http://localhost:3001';
+            
+            try {
+                console.log('Testing connection to:', API_BASE + '/health');
+                
+                // Test health endpoint
+                const healthResponse = await fetch(API_BASE + '/health');
+                const healthData = await healthResponse.json();
+                console.log('Health response:', healthData);
+                
+                // Test supported formats endpoint
+                const formatsResponse = await fetch(API_BASE + '/optimizer/supported-formats');
+                const formatsData = await formatsResponse.json();
+                console.log('Formats response:', formatsData);
+                
+                resultDiv.innerHTML = `
+                    <h3>✅ Connection Successful!</h3>
+                    <p><strong>Health Check:</strong> ${JSON.stringify(healthData)}</p>
+                    <p><strong>Supported Formats:</strong> ${formatsData.supported_extensions?.join(', ')}</p>
+                    <p><strong>API Base:</strong> ${API_BASE}</p>
+                `;
+                
+            } catch (error) {
+                console.error('Connection failed:', error);
+                resultDiv.innerHTML = `
+                    <h3>❌ Connection Failed!</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>API Base:</strong> ${API_BASE}</p>
+                    <p>Make sure the server is running on port 3001</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

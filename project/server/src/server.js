@@ -10,6 +10,10 @@ import { fileStorage } from './utils/fileStorage.js';
 // Removed unused vertex.js service
 import { ragAnalyzer } from './services/rag-service.js';
 import { enhancedRAGAnalyzer } from './services/enhanced-rag-service.js';
+import { resumeOptimizer } from './services/resume-optimizer.js';
+import { multiFormatParser } from '../utils/multiFormatParser.js';
+import { careerTrajectoryPredictor } from './services/career-trajectory-predictor.js';
+import { marketIntelligenceService } from './services/market-intelligence.js';
 import MentorService from './services/mentor-service.js';
 import SimulationService from './services/simulation-service.js';
 import TelemetryService from './services/telemetry-service.js';
@@ -549,6 +553,422 @@ app.post('/test-job-matching', async (req, res) => {
     res.status(500).json({ 
       error: 'Job matching test failed', 
       details: err.message 
+    });
+  }
+});
+
+// ===================
+// 🎯 HACKATHON FEATURES - RESUME OPTIMIZER
+// ===================
+
+// Optimize resume for ATS and target role
+app.post('/optimize-resume', async (req, res) => {
+  try {
+    const { resumeText, targetRole, jobDescriptions = [] } = req.body;
+    
+    if (!resumeText || !targetRole) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: resumeText, targetRole' 
+      });
+    }
+    
+    const optimization = await resumeOptimizer.optimizeResume(
+      resumeText, 
+      targetRole, 
+      jobDescriptions
+    );
+    
+    res.json({
+      success: true,
+      ...optimization
+    });
+    
+  } catch (error) {
+    console.error('Resume optimization failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Resume optimization failed',
+      details: error.message
+    });
+  }
+});
+
+// Generate personalized cover letter
+app.post('/generate-cover-letter', async (req, res) => {
+  try {
+    const { resumeData, jobDescription, companyName } = req.body;
+    
+    if (!resumeData || !jobDescription || !companyName) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: resumeData, jobDescription, companyName' 
+      });
+    }
+    
+    const coverLetter = await resumeOptimizer.generateCoverLetter(
+      resumeData, 
+      jobDescription, 
+      companyName
+    );
+    
+    res.json({
+      success: true,
+      ...coverLetter
+    });
+    
+  } catch (error) {
+    console.error('Cover letter generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Cover letter generation failed',
+      details: error.message
+    });
+  }
+});
+
+// Calculate ATS compatibility score
+app.post('/calculate-ats-score', async (req, res) => {
+  try {
+    const { resumeText, jobDescription } = req.body;
+    
+    if (!resumeText || !jobDescription) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: resumeText, jobDescription' 
+      });
+    }
+    
+    const atsAnalysis = await resumeOptimizer.calculateATSScore(
+      resumeText, 
+      jobDescription
+    );
+    
+    res.json({
+      success: true,
+      ...atsAnalysis
+    });
+    
+  } catch (error) {
+    console.error('ATS score calculation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'ATS score calculation failed',
+      details: error.message
+    });
+  }
+});
+
+// 🎯 HACKATHON FEATURE: File Upload Resume Optimization
+app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
+  try {
+    const { targetRole, jobDescription, companyName } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        error: 'No file uploaded. Please upload a PDF, Word, or image file.' 
+      });
+    }
+    
+    if (!targetRole) {
+      return res.status(400).json({ 
+        error: 'Missing required field: targetRole' 
+      });
+    }
+    
+    // Validate file format
+    const validation = multiFormatParser.validateFile(
+      req.file.originalname, 
+      req.file.mimetype, 
+      req.file.size
+    );
+    
+    if (!validation.valid) {
+      // Clean up uploaded file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup invalid file:', cleanupError);
+      }
+      
+      return res.status(400).json({ 
+        error: validation.error 
+      });
+    }
+    
+    console.log(`Processing ${validation.fileType} file: ${req.file.originalname}`);
+    
+    // Parse file content
+    let resumeText;
+    try {
+      resumeText = await multiFormatParser.parseFile(
+        req.file.path, 
+        req.file.originalname, 
+        req.file.mimetype
+      );
+    } catch (parseError) {
+      // Clean up uploaded file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file after parse error:', cleanupError);
+      }
+      
+      return res.status(400).json({
+        error: 'File parsing failed: ' + parseError.message,
+        suggestion: 'Try converting your file to PDF format or enter text manually'
+      });
+    }
+    
+    if (!resumeText || resumeText.trim().length < 50) {
+      // Clean up uploaded file
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file with insufficient content:', cleanupError);
+      }
+      
+      return res.status(400).json({
+        error: 'Insufficient text content extracted from file',
+        extractedLength: resumeText?.length || 0,
+        suggestion: 'Please ensure your file contains readable text content'
+      });
+    }
+    
+    console.log(`Extracted ${resumeText.length} characters from ${validation.fileType} file`);
+    
+    // Optimize resume
+    const optimization = await resumeOptimizer.optimizeResume(
+      resumeText, 
+      targetRole, 
+      jobDescription ? [jobDescription] : []
+    );
+    
+    // Generate cover letter if company name provided
+    let coverLetter = null;
+    if (companyName && jobDescription) {
+      try {
+        coverLetter = await resumeOptimizer.generateCoverLetter(
+          {
+            skills: resumeText.match(/skills?[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1]?.split(/[,\n]/).map(s => s.trim()) || [],
+            experience: resumeText.match(/experience[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || '',
+            education: resumeText.match(/education[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || ''
+          },
+          jobDescription,
+          companyName
+        );
+      } catch (coverLetterError) {
+        console.warn('Cover letter generation failed:', coverLetterError);
+      }
+    }
+    
+    // Calculate ATS score if job description provided
+    let atsAnalysis = null;
+    if (jobDescription) {
+      try {
+        atsAnalysis = await resumeOptimizer.calculateATSScore(resumeText, jobDescription);
+      } catch (atsError) {
+        console.warn('ATS analysis failed:', atsError);
+      }
+    }
+    
+    // Clean up uploaded file
+    try {
+      await fs.unlink(req.file.path);
+    } catch (cleanupError) {
+      console.warn('Failed to cleanup processed file:', cleanupError);
+    }
+    
+    res.json({
+      success: true,
+      file_info: {
+        original_name: req.file.originalname,
+        file_type: validation.fileType,
+        file_size: req.file.size,
+        text_length: resumeText.length
+      },
+      original_text: resumeText,
+      optimization: optimization,
+      cover_letter: coverLetter,
+      ats_analysis: atsAnalysis
+    });
+    
+  } catch (error) {
+    console.error('File-based resume optimization failed:', error);
+    
+    // Clean up uploaded file on error
+    if (req.file?.path) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file after error:', cleanupError);
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'File-based resume optimization failed',
+      details: error.message
+    });
+  }
+});
+
+// Get supported file formats for frontend
+app.get('/optimizer/supported-formats', (req, res) => {
+  res.json({
+    success: true,
+    supported_extensions: multiFormatParser.getSupportedExtensions(),
+    supported_mime_types: multiFormatParser.getSupportedMimeTypes(),
+    max_file_size: '50MB',
+    formats: {
+      pdf: 'PDF documents (.pdf)',
+      word: 'Word documents (.doc, .docx)',
+      image: 'Images (.jpg, .jpeg, .png, .gif, .bmp, .tiff)',
+      text: 'Text files (.txt, .rtf)'
+    }
+  });
+});
+
+// ===================
+// 🎯 HACKATHON FEATURES - CAREER INTELLIGENCE
+// ===================
+
+// Predict career trajectory
+app.post('/predict-career-trajectory', async (req, res) => {
+  try {
+    const { resumeData, targetRole, timeframe = '5-years' } = req.body;
+    
+    if (!resumeData || !targetRole) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: resumeData, targetRole' 
+      });
+    }
+    
+    const trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
+      resumeData, 
+      targetRole, 
+      timeframe
+    );
+    
+    res.json({
+      success: true,
+      ...trajectory
+    });
+    
+  } catch (error) {
+    console.error('Career trajectory prediction failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Career trajectory prediction failed',
+      details: error.message
+    });
+  }
+});
+
+// Generate salary predictions
+app.post('/predict-salary', async (req, res) => {
+  try {
+    const { role, location = 'Remote', experienceLevel = 'Mid' } = req.body;
+    
+    if (!role) {
+      return res.status(400).json({ 
+        error: 'Missing required field: role' 
+      });
+    }
+    
+    const salaryPrediction = await careerTrajectoryPredictor.generateSalaryPredictions(
+      role, 
+      location, 
+      experienceLevel
+    );
+    
+    res.json({
+      success: true,
+      ...salaryPrediction
+    });
+    
+  } catch (error) {
+    console.error('Salary prediction failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Salary prediction failed',
+      details: error.message
+    });
+  }
+});
+
+// Get skill demand trends
+app.post('/market/skill-trends', async (req, res) => {
+  try {
+    const { skills } = req.body;
+    
+    if (!skills || !Array.isArray(skills)) {
+      return res.status(400).json({ 
+        error: 'Missing required field: skills (array)' 
+      });
+    }
+    
+    const skillTrends = await marketIntelligenceService.getSkillDemandTrends(skills);
+    
+    res.json({
+      success: true,
+      ...skillTrends
+    });
+    
+  } catch (error) {
+    console.error('Skill trends analysis failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Skill trends analysis failed',
+      details: error.message
+    });
+  }
+});
+
+// Get company hiring trends
+app.get('/market/company-trends', async (req, res) => {
+  try {
+    const { companies } = req.query;
+    const companyList = companies ? companies.split(',') : [];
+    
+    const companyTrends = await marketIntelligenceService.getCompanyHiringTrends(companyList);
+    
+    res.json({
+      success: true,
+      ...companyTrends
+    });
+    
+  } catch (error) {
+    console.error('Company trends analysis failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Company trends analysis failed',
+      details: error.message
+    });
+  }
+});
+
+// Generate comprehensive market report
+app.post('/market/comprehensive-report', async (req, res) => {
+  try {
+    const { userProfile } = req.body;
+    
+    if (!userProfile) {
+      return res.status(400).json({ 
+        error: 'Missing required field: userProfile' 
+      });
+    }
+    
+    const marketReport = await marketIntelligenceService.generateMarketReport(userProfile);
+    
+    res.json({
+      success: true,
+      ...marketReport
+    });
+    
+  } catch (error) {
+    console.error('Market report generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Market report generation failed',
+      details: error.message
     });
   }
 });

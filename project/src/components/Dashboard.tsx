@@ -6,6 +6,8 @@ import {
   Play
 } from 'lucide-react';
 import ResumeUpload from './ResumeUpload';
+import ResumeOptimizer from './ResumeOptimizer';
+import CareerIntelligence from './CareerIntelligence';
 import ProfileSettings from './ProfileSettings';
 import AIMentorChat from './AIMentorChat';
 import BadgeShowcase from './BadgeShowcase';
@@ -853,6 +855,75 @@ const Dashboard: React.FC = () => {
           </div>
         );
 
+      case 'optimizer':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Zap className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">🎯 Hackathon Feature</h2>
+                  <p className="text-purple-700">AI-Powered Resume Optimization Suite</p>
+                </div>
+              </div>
+              <div className="bg-white/80 rounded-xl p-4">
+                <p className="text-gray-700">
+                  <strong>New for Google Gen AI Hackathon:</strong> Advanced resume optimization with ATS scoring, 
+                  keyword analysis, and AI-generated cover letters. This feature showcases cutting-edge RAG 
+                  technology for personalized career enhancement.
+                </p>
+              </div>
+            </div>
+            
+            <ResumeOptimizer 
+              resumeText={resumeAnalysis?.skillsFound ? 
+                `Skills: ${resumeAnalysis.skillsFound.join(', ')}\n\nExperience Level: ${resumeAnalysis.experienceLevel || 'Entry Level'}\n\nRecommendations: ${resumeAnalysis.recommendations?.join('. ') || 'None'}` 
+                : undefined
+              }
+              targetRole={resumeAnalysis?.experienceLevel?.toLowerCase().replace(' ', '-') || 'software-engineer'}
+              onOptimizationComplete={(result) => {
+                console.log('Resume optimization completed:', result);
+                // Could trigger badge earning or XP gain here
+              }}
+            />
+          </div>
+        );
+
+      case 'intelligence':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-2xl p-6 border border-blue-200">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Brain className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">🧠 Hackathon Feature</h2>
+                  <p className="text-blue-700">AI Career Trajectory & Market Intelligence</p>
+                </div>
+              </div>
+              <div className="bg-white/80 rounded-xl p-4">
+                <p className="text-gray-700">
+                  <strong>Advanced AI Features:</strong> Predict your 5-year career trajectory, analyze real-time 
+                  market trends, get salary insights, and receive personalized recommendations based on current 
+                  industry data and AI-powered forecasting.
+                </p>
+              </div>
+            </div>
+            
+            <CareerIntelligence 
+              userProfile={{
+                skills: resumeAnalysis?.skillsFound || ['JavaScript', 'React', 'Node.js'],
+                targetRole: resumeAnalysis?.experienceLevel || 'Senior Software Engineer',
+                experienceLevel: 'Mid',
+                location: 'Remote'
+              }}
+            />
+          </div>
+        );
+
       default:
         return <div>Tab content not found</div>;
     }
@@ -931,6 +1002,8 @@ const Dashboard: React.FC = () => {
                 {[
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
                   { id: 'resume', label: 'Resume Analysis', icon: FileText },
+                  { id: 'optimizer', label: '🎯 Resume Optimizer', icon: Zap },
+                  { id: 'intelligence', label: '🧠 Career Intelligence', icon: TrendingUp },
                   { id: 'simulations', label: 'Simulations', icon: Play },
                   { id: 'badges', label: 'Badges', icon: Award },
                   { id: 'mentor', label: 'AI Mentor', icon: Brain }

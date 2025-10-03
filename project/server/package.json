@@ -18,6 +18,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "form-data": "^4.0.4",
+    "mammoth": "^1.11.0",
     "mime-types": "^2.1.35",
     "mongo": "^0.1.0",
     "mongodb": "^6.19.0",
@@ -25,6 +26,7 @@
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2",
     "pdf-parse": "^1.1.1",
-    "usetube": "^2.2.7"
+    "tesseract.js": "^5.1.1",
+    "usetube": "^2.0.2"
   }
 }
