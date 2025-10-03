@@ -8,7 +8,7 @@
 > **A comprehensive career development platform powered by Google Cloud's Gemini AI, featuring intelligent resume analysis, personalized learning roadmaps, and interactive career simulations.**
 
 ### Live Demo
-[RunaGen AI Prototype — Live Link](https://68d146a58fa9e71ca72d4ade--marvelous-douhua-f5a73c.netlify.app/)
+[RunaGen AI Prototype — Live Link](https://classy-llama-a6740f.netlify.app/)
 
 [RunaGen AI Prototype — Demo Video Link](https://drive.google.com/file/d/1zAdDNFjA5LxxSZDx6IDi_qfXwdP3NT18/view)
 
