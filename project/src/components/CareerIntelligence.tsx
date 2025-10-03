@@ -112,14 +112,24 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
         }),
       });
 
-      const data = await response.json();
-      if (data.success) {
-        setTrajectory(data);
+      // Read raw body first to improve diagnostics
+      const raw = await response.text();
+      let data: any = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+      if (!response.ok) {
+        console.error('Trajectory prediction failed (HTTP):', response.status, data?.error || data?.details || raw || 'No body');
+        return;
+      }
+
+      if (data && (data.success || data.career_path)) {
+        // Accept fallback payloads that include trajectory fields even if success is false
+        setTrajectory(data as any);
       } else {
-        console.error('Trajectory prediction failed:', data.error);
+        console.error('Trajectory prediction failed:', (data && (data.error || data.details)) || raw || 'Unknown error');
       }
     } catch (error) {
-      console.error('Trajectory prediction failed:', error);
+      console.error('Trajectory prediction failed (network):', (error as Error)?.message || error);
     } finally {
       setIsLoadingTrajectory(false);
     }
@@ -166,14 +176,22 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
         }),
       });
 
-      const data = await response.json();
-      if (data.success) {
+      const raw = await response.text();
+      let data: any = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+      if (!response.ok) {
+        console.error('Salary prediction failed (HTTP):', response.status, data?.error || data?.details || raw || 'No body');
+        return;
+      }
+
+      if (data && (data.success || data.current_salary_range || data.salary_progression)) {
         setSalaryData(data);
       } else {
-        console.error('Salary prediction failed:', data.error);
+        console.error('Salary prediction failed:', (data && (data.error || data.details)) || raw || 'Unknown error');
       }
     } catch (error) {
-      console.error('Salary prediction failed:', error);
+      console.error('Salary prediction failed (network):', (error as Error)?.message || error);
     } finally {
       setIsLoadingSalary(false);
     }
