@@ -10,22 +10,28 @@ export class RAGResumeAnalyzer {
     this.project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     this.location = process.env.VERTEX_LOCATION || 'us-central1';
     this.model = process.env.VERTEX_MODEL || 'gemini-2.5-flash';
+    this.isConfigured = false;
     
     if (!this.project) {
-      throw new Error('Vertex project not set. Set VERTEX_PROJECT_ID or GOOGLE_CLOUD_PROJECT');
+      console.warn('RAG: Vertex project not configured. Using fallback analyzer.');
+    } else {
+      try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
+        const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
+
+        this.vertexAI = new VertexAI({ 
+          project: this.project, 
+          location: this.location,
+          googleAuthOptions: { keyFile: credentialsPath }
+        });
+        this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+        this.isConfigured = true;
+      } catch (error) {
+        console.warn('RAG: Failed to initialize Vertex AI. Falling back. Reason:', error.message);
+      }
     }
-
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
-
-    this.vertexAI = new VertexAI({ 
-      project: this.project, 
-      location: this.location,
-      googleAuthOptions: { keyFile: credentialsPath }
-    });
-    this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
     
     // Knowledge base for RAG
     this.knowledgeBase = this.buildKnowledgeBase();
@@ -153,6 +159,9 @@ JSON Response:`;
   // Main RAG-enhanced analysis function
   async analyzeResumeWithRAG(resumeText, jdText, role) {
     try {
+      if (!this.isConfigured) {
+        return await this.analyzeResumeWithFallback(resumeText, jdText, role);
+      }
       const prompt = this.buildRAGPrompt(resumeText, jdText, role);
       
       const result = await this.generativeModel.generateContent({
@@ -223,7 +232,7 @@ JSON Response:`;
       
     } catch (error) {
       console.error('RAG analysis error:', error);
-      throw new Error(`RAG analysis failed: ${error.message}`);
+      return await this.analyzeResumeWithFallback(resumeText, jdText, role);
     }
   }
 
