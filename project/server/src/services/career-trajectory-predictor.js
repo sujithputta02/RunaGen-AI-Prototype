@@ -12,24 +12,44 @@ export class CareerTrajectoryPredictor {
     this.project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     this.location = process.env.VERTEX_LOCATION || 'us-central1';
     this.model = process.env.VERTEX_MODEL || 'gemini-2.5-flash';
+    this.isConfigured = false;
     
     if (!this.project) {
-      throw new Error('Vertex project not set');
+      console.warn('Vertex project not configured. Career trajectory will use fallback mode.');
+      return;
     }
 
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
+    try {
+      const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
+      const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
 
-    this.vertexAI = new VertexAI({ 
-      project: this.project, 
-      location: this.location,
-      googleAuthOptions: { keyFile: credentialsPath }
-    });
-    this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+      this.vertexAI = new VertexAI({ 
+        project: this.project, 
+        location: this.location,
+        googleAuthOptions: { keyFile: credentialsPath }
+      });
+      this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+      this.isConfigured = true;
+    } catch (error) {
+      console.warn('Failed to initialize Vertex AI:', error.message);
+      console.warn('Career trajectory will use fallback mode.');
+    }
   }
 
   // Predict career trajectory based on current skills and market trends
   async predictCareerTrajectory(resumeData, targetRole, timeframe = '5-years') {
+    // Validate inputs
+    if (!resumeData || !targetRole) {
+      console.warn('Invalid input data for career trajectory prediction');
+      return this.generateFallbackTrajectory(resumeData || {}, targetRole || 'Software Engineer', timeframe);
+    }
+
+    // If not configured, use fallback immediately
+    if (!this.isConfigured) {
+      console.log('Using fallback trajectory (AI not configured)');
+      return this.generateFallbackTrajectory(resumeData, targetRole, timeframe);
+    }
+
     try {
       const prompt = `You are an expert career strategist and market analyst. Predict a realistic career trajectory.
 
@@ -86,7 +106,12 @@ Generate a detailed career trajectory prediction in JSON format:
 
 Return only valid JSON.`;
 
-      const result = await this.generativeModel.generateContent({
+      // Add timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('AI request timeout')), 30000)
+      );
+
+      const aiPromise = this.generativeModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
@@ -95,11 +120,20 @@ Return only valid JSON.`;
         }
       });
 
+      const result = await Promise.race([aiPromise, timeoutPromise]);
+
       const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      if (!response) {
+        console.warn('Empty response from AI model, using fallback');
+        return this.generateFallbackTrajectory(resumeData, targetRole, timeframe);
+      }
+      
       const trajectory = this.safeParseJson(response);
       
       if (!trajectory) {
-        throw new Error('Failed to parse trajectory response');
+        console.warn('Failed to parse AI response, using fallback. Response:', response.substring(0, 200));
+        return this.generateFallbackTrajectory(resumeData, targetRole, timeframe);
       }
 
       return {
@@ -174,28 +208,73 @@ Return only valid JSON.`;
 
   // Utility methods
   safeParseJson(text) {
+    if (!text || typeof text !== 'string') {
+      return null;
+    }
+
     try {
+      // Remove markdown code blocks and extra whitespace
       let cleaned = text.replace(/```(?:json)?/gi, '').trim();
-      try { return JSON.parse(cleaned); } catch (_) {}
       
+      // Try direct parsing first
+      try { 
+        return JSON.parse(cleaned); 
+      } catch (_) {
+        // Continue to more complex parsing
+      }
+      
+      // Remove any leading/trailing non-JSON content
+      cleaned = cleaned.replace(/^[^{]*/, '').replace(/[^}]*$/, '');
+      
+      if (!cleaned) {
+        return null;
+      }
+
+      // Try parsing the cleaned version
+      try {
+        return JSON.parse(cleaned);
+      } catch (_) {
+        // Continue to bracket matching
+      }
+      
+      // Find the first complete JSON object using bracket matching
       let inString = false, escapeNext = false, depth = 0, start = -1;
       for (let i = 0; i < cleaned.length; i++) {
         const ch = cleaned[i];
-        if (escapeNext) { escapeNext = false; continue; }
-        if (ch === '\\') { if (inString) escapeNext = true; continue; }
-        if (ch === '"') { inString = !inString; continue; }
+        if (escapeNext) { 
+          escapeNext = false; 
+          continue; 
+        }
+        if (ch === '\\') { 
+          if (inString) escapeNext = true; 
+          continue; 
+        }
+        if (ch === '"') { 
+          inString = !inString; 
+          continue; 
+        }
         if (inString) continue;
-        if (ch === '{') { if (depth === 0) start = i; depth++; continue; }
+        
+        if (ch === '{') { 
+          if (depth === 0) start = i; 
+          depth++; 
+          continue; 
+        }
         if (ch === '}') {
           if (depth > 0) depth--;
           if (depth === 0 && start !== -1) {
             const candidate = cleaned.slice(start, i + 1);
-            try { return JSON.parse(candidate); } catch (_) { /* continue */ }
+            try { 
+              return JSON.parse(candidate); 
+            } catch (_) { 
+              // Continue searching for other JSON objects
+            }
           }
         }
       }
       return null;
     } catch (error) {
+      console.warn('JSON parsing error:', error.message);
       return null;
     }
   }
