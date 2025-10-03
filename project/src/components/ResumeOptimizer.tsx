@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { 
-  Zap, FileText, Target, TrendingUp, 
-  CheckCircle, AlertCircle, Download, Copy,
+  Zap, FileText, Target,
+  CheckCircle, Copy,
   Sparkles, BarChart3, Award, RefreshCw,
   Upload, Trash2, Image, FileType
 } from 'lucide-react';
@@ -180,6 +180,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
     }
     
     console.log(`File selected: ${file.name} (${fileExtension}, ${(file.size / 1024).toFixed(2)} KB)`);
+    setInputMode('file');
     setUploadedFile(file);
     setResumeText(''); // Clear text input when file is selected
   };
@@ -216,9 +217,16 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
       return optimizeResumeFromFile();
     }
     
-    if (!resumeText.trim()) {
-      alert('Please enter your resume text or upload a file');
-      return;
+    if (inputMode === 'text') {
+      if (!resumeText.trim()) {
+        alert('Please enter your resume text or upload a file');
+        return;
+      }
+    } else if (inputMode === 'file') {
+      if (!uploadedFile) {
+        alert('Please upload a resume file');
+        return;
+      }
     }
 
     setIsOptimizing(true);
@@ -243,8 +251,9 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
         alert('Optimization failed: ' + data.error);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Optimization failed:', error);
-      alert('Optimization failed: ' + error.message);
+      alert('Optimization failed: ' + message);
     } finally {
       setIsOptimizing(false);
     }
@@ -317,8 +326,9 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
         alert('File optimization failed: ' + errorMsg);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('File optimization failed:', error);
-      alert(`File optimization failed: ${error.message}\n\nPlease check:\n1. Server is running on port 3001\n2. File format is supported\n3. File is not corrupted`);
+      alert(`File optimization failed: ${message}\n\nPlease check:\n1. Server is running on port 3001\n2. File format is supported\n3. File is not corrupted`);
     } finally {
       setIsOptimizing(false);
     }
@@ -326,33 +336,72 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
 
   const calculateATSScore = async () => {
     const currentResumeText = resumeText.trim();
-    if (!currentResumeText || !jobDescription.trim()) {
-      alert('Please provide resume content (text or file) and job description');
+    if (!jobDescription.trim()) {
+      alert('Please provide a job description');
       return;
     }
 
     setIsCalculatingATS(true);
     try {
-      const response = await fetch(`${API_BASE}/calculate-ats-score`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          resumeText: currentResumeText,
-          jobDescription
-        }),
-      });
+      if (inputMode === 'file' && uploadedFile) {
+        // If a file is uploaded, use the file-based endpoint which also returns ats_analysis
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        formData.append('targetRole', targetRole);
+        formData.append('jobDescription', jobDescription);
 
-      const data = await response.json();
-      if (data.success) {
-        setATSAnalysis(data);
+        const response = await fetch(`${API_BASE}/optimize-resume-file`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          if (data.original_text) {
+            setResumeText(data.original_text);
+          }
+          if (data.ats_analysis) {
+            setATSAnalysis(data.ats_analysis);
+          } else {
+            alert('ATS analysis not available from server response.');
+          }
+        } else {
+          alert('ATS analysis failed: ' + (data.error || 'Unknown error'));
+        }
       } else {
-        alert('ATS analysis failed: ' + data.error);
+        // Text-input path uses the ATS-only endpoint
+        if (!currentResumeText) {
+          alert('Please enter your resume text or upload a file');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE}/calculate-ats-score`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resumeText: currentResumeText,
+            jobDescription
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setATSAnalysis(data);
+        } else {
+          alert('ATS analysis failed: ' + (data.error || 'Unknown error'));
+        }
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('ATS analysis failed:', error);
-      alert('ATS analysis failed: ' + error.message);
+      alert('ATS analysis failed: ' + message);
     } finally {
       setIsCalculatingATS(false);
     }
@@ -360,38 +409,76 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
 
   const generateCoverLetter = async () => {
     const currentResumeText = resumeText.trim();
-    if (!currentResumeText || !jobDescription.trim() || !companyName.trim()) {
-      alert('Please provide resume content (text or file), job description, and company name');
+    if (!jobDescription.trim() || !companyName.trim()) {
+      alert('Please provide job description and company name');
       return;
     }
 
     setIsGeneratingCoverLetter(true);
     try {
-      const response = await fetch(`${API_BASE}/generate-cover-letter`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          resumeData: {
-            skills: currentResumeText.match(/skills?[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1]?.split(/[,\n]/).map(s => s.trim()) || [],
-            experience: currentResumeText.match(/experience[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || '',
-            education: currentResumeText.match(/education[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || ''
-          },
-          jobDescription,
-          companyName
-        }),
-      });
+      if (inputMode === 'file' && uploadedFile) {
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        formData.append('targetRole', targetRole);
+        formData.append('jobDescription', jobDescription);
+        formData.append('companyName', companyName);
 
-      const data = await response.json();
-      if (data.success) {
-        setCoverLetter(data);
+        const response = await fetch(`${API_BASE}/optimize-resume-file`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          if (data.original_text) {
+            setResumeText(data.original_text);
+          }
+          if (data.cover_letter) {
+            setCoverLetter(data.cover_letter);
+          } else {
+            alert('Cover letter not available from server response.');
+          }
+        } else {
+          alert('Cover letter generation failed: ' + (data.error || 'Unknown error'));
+        }
       } else {
-        alert('Cover letter generation failed: ' + data.error);
+        if (!currentResumeText) {
+          alert('Please enter your resume text or upload a file');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE}/generate-cover-letter`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resumeData: {
+              skills: currentResumeText.match(/skills?[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1]?.split(/[\,\n]/).map(s => s.trim()) || [],
+              experience: currentResumeText.match(/experience[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || '',
+              education: currentResumeText.match(/education[:\-\s]+(.*?)(?:\n\n|\n[A-Z]|$)/i)?.[1] || ''
+            },
+            jobDescription,
+            companyName
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setCoverLetter(data);
+        } else {
+          alert('Cover letter generation failed: ' + (data.error || 'Unknown error'));
+        }
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Cover letter generation failed:', error);
-      alert('Cover letter generation failed: ' + error.message);
+      alert('Cover letter generation failed: ' + message);
     } finally {
       setIsGeneratingCoverLetter(false);
     }
@@ -427,7 +514,8 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
                 const data = await response.json();
                 alert(`API Test: ${data.success ? 'SUCCESS' : 'FAILED'}\nSupported formats: ${data.supported_extensions?.join(', ') || 'None'}`);
               } catch (error) {
-                alert(`API Test FAILED: ${error.message}`);
+                const message = error instanceof Error ? error.message : String(error);
+                alert(`API Test FAILED: ${message}`);
               }
             }}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
@@ -574,7 +662,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
                 
                 {supportedFormats && (
                   <div className="mt-2 text-xs text-gray-500">
-                    <strong>Supported formats:</strong> {Object.values(supportedFormats.formats).join(', ')}
+                    <strong>Supported formats:</strong> {(supportedFormats?.formats ? Object.values(supportedFormats.formats) : []).join(', ')}
                   </div>
                 )}
               </div>
@@ -719,7 +807,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/30">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Key Improvements</h3>
             <div className="space-y-4">
-              {optimization.key_improvements.map((improvement, index) => (
+              {(optimization.key_improvements ?? []).map((improvement, index) => (
                 <div key={index} className="border border-gray-200 rounded-xl p-4">
                   <div className="flex items-center mb-2">
                     <Target className="h-5 w-5 text-blue-600 mr-2" />
@@ -749,17 +837,17 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/30">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">ATS Analysis Results</h3>
-              <div className={`px-4 py-2 rounded-xl font-bold text-lg ${getScoreColor(atsAnalysis.ats_score)}`}>
-                {atsAnalysis.ats_score}/100
+              <div className={`px-4 py-2 rounded-xl font-bold text-lg ${getScoreColor(atsAnalysis.ats_score ?? 0)}`}>
+                {(atsAnalysis.ats_score ?? 0)}/100
               </div>
             </div>
 
             {/* Score Breakdown */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {Object.entries(atsAnalysis.score_breakdown).map(([key, value]) => (
+              {Object.entries(atsAnalysis.score_breakdown ?? {}).map(([key, value]) => (
                 <div key={key} className="text-center">
-                  <div className={`text-2xl font-bold ${getScoreColor(value)}`}>
-                    {value}
+                  <div className={`text-2xl font-bold ${getScoreColor(Number(value) || 0)}`}>
+                    {Number(value) || 0}
                   </div>
                   <div className="text-sm text-gray-600 capitalize">
                     {key.replace('_', ' ')}
@@ -773,7 +861,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-gray-700 font-medium">ATS Pass Probability</span>
                 <span className="text-2xl font-bold text-purple-600">
-                  {atsAnalysis.pass_probability}%
+                  {(atsAnalysis.pass_probability ?? 0)}%
                 </span>
               </div>
             </div>
@@ -783,7 +871,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
               <div>
                 <h4 className="font-semibold text-green-800 mb-2">Matched Keywords</h4>
                 <div className="flex flex-wrap gap-2">
-                  {atsAnalysis.keyword_analysis.matched_keywords.map((keyword, index) => (
+                  {(atsAnalysis.keyword_analysis?.matched_keywords ?? []).map((keyword, index) => (
                     <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
                       {keyword}
                     </span>
@@ -793,7 +881,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
               <div>
                 <h4 className="font-semibold text-red-800 mb-2">Missing Keywords</h4>
                 <div className="flex flex-wrap gap-2">
-                  {atsAnalysis.keyword_analysis.missing_keywords.map((keyword, index) => (
+                  {(atsAnalysis.keyword_analysis?.missing_keywords ?? []).map((keyword, index) => (
                     <span key={index} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
                       {keyword}
                     </span>
@@ -829,7 +917,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
             <div>
               <h4 className="font-semibold text-blue-800 mb-3">Key Highlights</h4>
               <ul className="space-y-2">
-                {coverLetter.key_highlights.map((highlight, index) => (
+                {(coverLetter.key_highlights ?? []).map((highlight, index) => (
                   <li key={index} className="flex items-start">
                     <CheckCircle className="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{highlight}</span>
@@ -840,7 +928,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
             <div>
               <h4 className="font-semibold text-purple-800 mb-3">Personalization Elements</h4>
               <ul className="space-y-2">
-                {coverLetter.personalization_elements.map((element, index) => (
+                {(coverLetter.personalization_elements ?? []).map((element, index) => (
                   <li key={index} className="flex items-start">
                     <Award className="h-5 w-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{element}</span>

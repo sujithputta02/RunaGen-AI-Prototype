@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: runagen-backend:latest
+    container_name: runagen-backend
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGO_URI=mongodb://sujithputta02_db_user:sujith@ac-gxhljxe-shard-00-00.9jgooub.mongodb.net:27017,ac-gxhljxe-shard-00-01.9jgooub.mongodb.net:27017,ac-gxhljxe-shard-00-02.9jgooub.mongodb.net:27017/?replicaSet=atlas-h80prm-shard-0&authSource=admin&tls=true&retryWrites=true&w=majority&appName=Cluster0caai 
+      - MONGO_DB=resume_analysis
+      - RUN_IN_CONTAINER=true
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/career-companion-472510-7dd10b4d4dcb.json
+    volumes:
+      - ./career-companion-472510-7dd10b4d4dcb.json:/app/career-companion-472510-7dd10b4d4dcb.json:ro
+      - backend_temp:/app/temp
+      - backend_data:/app/data
+    networks:
+      - runagen-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+volumes:
+  backend_temp:
+    driver: local
+  backend_data:
+    driver: local
+
+networks:
+  runagen-network:
+    driver: bridge

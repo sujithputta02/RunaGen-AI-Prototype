@@ -81,11 +81,12 @@ Return only valid JSON.`;
         }
       });
 
-      const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const optimization = this.safeParseJson(response);
+      const response = this.extractTextFromVertexResponse(result);
+      let optimization = this.safeParseJson(response);
       
       if (!optimization) {
-        throw new Error('Failed to parse optimization response');
+        // Soft-fallback: try to coerce a valid structure from raw text without erroring
+        optimization = this.coerceOptimizationFromText(response, resumeText, targetRole);
       }
 
       return {
@@ -142,8 +143,8 @@ Return only valid JSON.`;
         }
       });
 
-      const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const coverLetter = this.safeParseJson(response);
+      const response = this.extractTextFromVertexResponse(result);
+      const coverLetter = this.safeParseJson(response) || {};
       
       return {
         ...coverLetter,
@@ -207,8 +208,8 @@ Return only valid JSON.`;
         }
       });
 
-      const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const atsAnalysis = this.safeParseJson(response);
+      const response = this.extractTextFromVertexResponse(result);
+      const atsAnalysis = this.safeParseJson(response) || {};
       
       return {
         ...atsAnalysis,
@@ -225,14 +226,24 @@ Return only valid JSON.`;
   // Utility methods
   safeParseJson(text) {
     try {
-      // Remove code fences if present
-      let cleaned = text.replace(/```(?:json)?/gi, '').trim();
+      // Normalize smart quotes and remove code fences
+      let cleaned = (text || '')
+        .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+        .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+        .replace(/```(?:json)?/gi, '')
+        .trim();
       
       // Try direct parse first
       try {
         return JSON.parse(cleaned);
       } catch (_) {}
       
+      // Attempt to remove trailing commas
+      try {
+        const noTrailingCommas = cleaned.replace(/,\s*([}\]])/g, '$1');
+        return JSON.parse(noTrailingCommas);
+      } catch (_) {}
+
       // Find JSON object boundaries
       let inString = false;
       let escapeNext = false;
@@ -260,6 +271,83 @@ Return only valid JSON.`;
       console.error('JSON parsing failed:', error);
       return null;
     }
+  }
+
+  // Extracts best-effort text from Vertex response across SDK variants
+  extractTextFromVertexResponse(result) {
+    try {
+      // Prefer concatenating all text parts from the first candidate
+      const parts = result?.response?.candidates?.[0]?.content?.parts || [];
+      const joined = parts
+        .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+      if (joined) return joined;
+
+      // Some SDKs expose a convenience text accessor
+      const maybeText = result?.response?.text || result?.text;
+      if (typeof maybeText === 'string' && maybeText.trim().length > 0) {
+        return maybeText.trim();
+      }
+
+      // Fallback to the original single-part path
+      return result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // Attempts to build a minimally valid optimization object from arbitrary text
+  coerceOptimizationFromText(rawText, originalResume, targetRole) {
+    const text = (rawText || '').toString();
+    const improvements = [];
+    // Heuristic: look for lines with a colon to infer key-value improvements
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      const idx = line.indexOf(':');
+      if (idx > 0 && improvements.length < 5) {
+        const section = line.slice(0, idx).trim().slice(0, 60);
+        const optimized = line.slice(idx + 1).trim().slice(0, 500);
+        if (section && optimized) {
+          improvements.push({
+            section,
+            original: '',
+            optimized,
+            reason: 'Extracted from model response when JSON parsing failed'
+          });
+        }
+      }
+    }
+
+    return {
+      optimized_resume: improvements.length > 0 ? improvements.map(i => `- ${i.section}: ${i.optimized}`).join('\n') : (text || originalResume),
+      key_improvements: improvements.length > 0 ? improvements : [
+        {
+          section: 'General',
+          original: '',
+          optimized: 'Ensure clear summary, quantified achievements, and targeted keywords',
+          reason: 'Default guidance applied when model output was not valid JSON'
+        }
+      ],
+      ats_score: 70,
+      keyword_optimization: {
+        added_keywords: [],
+        keyword_density: 'N/A',
+        missing_keywords: []
+      },
+      formatting_improvements: [
+        'Use consistent bullet points',
+        'Quantify achievements',
+        'Optimize headers for ATS parsers'
+      ],
+      achievement_enhancements: [],
+      optimization_timestamp: new Date().toISOString(),
+      model_used: this.model,
+      target_role: targetRole,
+      success: false,
+      notes: 'Coerced from non-JSON response; consider adjusting model or prompt.'
+    };
   }
 
   generateFallbackOptimization(resumeText, targetRole) {
