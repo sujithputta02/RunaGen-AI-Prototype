@@ -10,6 +10,11 @@
 ### Live Demo
 [RunaGen AI Prototype — Live Link](https://68d146a58fa9e71ca72d4ade--marvelous-douhua-f5a73c.netlify.app/)
 
+[RunaGen AI Prototype — Demo Video Link](https://drive.google.com/file/d/1zAdDNFjA5LxxSZDx6IDi_qfXwdP3NT18/view)
+
+[RunaGen AI Prototype — Presentation Deck]( https://storage.googleapis.com/vision-hack2skill-production/innovator/USER00748815/1758477799496-GenAIExchangeHackathonPrototypeSubmission11.pdf)
+
+
 Note: The backend currently runs on `http://localhost:3001`. To fully test the prototype, open the project in VS Code and run the backend locally as described in the Quick Start section.
 
 ![AI Career Companion](https://img.shields.io/badge/AI-Powered-blue) ![Google Cloud](https://img.shields.io/badge/Google%20Cloud-GenAI-orange) ![MongoDB](https://img.shields.io/badge/Database-MongoDB-green) ![React](https://img.shields.io/badge/Frontend-React-blue) ![Node.js](https://img.shields.io/badge/Backend-Node.js-green)
