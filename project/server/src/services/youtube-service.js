@@ -67,6 +67,12 @@ export class YouTubeService {
       console.log(`YouTubeService: Searching for "${query}" using usetube library`);
       const results = await usetube.searchVideo(query, maxResults);
       
+      // Check if results exist and have videos property
+      if (!results || typeof results !== 'object') {
+        console.log('YouTubeService: Invalid results from usetube, falling back to mock data');
+        return this.getMockVideoResults(query);
+      }
+      
       // usetube returns { videos: [], didyoumean: "" }
       const videos = results.videos || [];
       

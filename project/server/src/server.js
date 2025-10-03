@@ -1395,6 +1395,7 @@ app.post('/test-pdf-parsing', upload.single('file'), async (req, res) => {
     const filePath = req.file.path;
     const filename = req.file.originalname;
     const mimetype = req.file.mimetype;
+    const fileExtension = path.extname(filename).toLowerCase();
     
     // Use shared multi-format parser with graceful fallbacks (works in Docker and local)
     let resumeText = '';
