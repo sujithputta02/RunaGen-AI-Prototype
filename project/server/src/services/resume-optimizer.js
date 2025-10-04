@@ -40,15 +40,16 @@ TARGET ROLE: ${targetRole}
 JOB DESCRIPTIONS FOR REFERENCE:
 ${jobDescriptions.slice(0, 3).map((jd, i) => `Job ${i + 1}: ${jd}`).join('\n\n')}
 
-Provide optimization suggestions in JSON format:
+IMPORTANT: You must respond with ONLY valid JSON. No additional text, explanations, or markdown formatting.
+
 {
-  "optimized_resume": "Complete optimized resume text with improved formatting",
+  "optimized_resume": "Complete optimized resume text with improved formatting and ATS-friendly structure",
   "key_improvements": [
     {
       "section": "Professional Summary",
-      "original": "Original text",
-      "optimized": "Improved text",
-      "reason": "Why this change improves ATS score"
+      "original": "Original text from resume",
+      "optimized": "Improved text with quantified achievements",
+      "reason": "Why this change improves ATS score and relevance"
     }
   ],
   "ats_score": 85,
@@ -68,15 +69,13 @@ Provide optimization suggestions in JSON format:
       "enhanced": "Led 3 cross-functional projects resulting in 25% efficiency improvement"
     }
   ]
-}
-
-Return only valid JSON.`;
+}`;
 
       const result = await this.generativeModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json'
         }
       });
@@ -117,9 +116,10 @@ ${jobDescription}
 
 COMPANY: ${companyName}
 
-Generate a compelling cover letter in JSON format:
+IMPORTANT: You must respond with ONLY valid JSON. No additional text, explanations, or markdown formatting.
+
 {
-  "cover_letter": "Complete cover letter text",
+  "cover_letter": "Complete cover letter text with professional greeting, body paragraphs highlighting relevant experience, and professional closing",
   "key_highlights": [
     "Relevant experience point 1",
     "Relevant skill match 2",
@@ -130,15 +130,13 @@ Generate a compelling cover letter in JSON format:
     "Role-specific enthusiasm"
   ],
   "call_to_action": "Strong closing statement"
-}
-
-Return only valid JSON.`;
+}`;
 
       const result = await this.generativeModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
           responseMimeType: 'application/json'
         }
       });
@@ -161,7 +159,7 @@ Return only valid JSON.`;
   // 🎯 HACKATHON FEATURE: ATS Score Calculator
   async calculateATSScore(resumeText, jobDescription) {
     try {
-      const prompt = `Analyze this resume against the job description and calculate an ATS (Applicant Tracking System) compatibility score.
+      const prompt = `Analyze this resume against the job description and calculate an ATS compatibility score.
 
 RESUME:
 ${resumeText}
@@ -169,41 +167,35 @@ ${resumeText}
 JOB DESCRIPTION:
 ${jobDescription}
 
-Provide detailed ATS analysis in JSON format:
+Respond with ONLY this JSON structure:
 {
-  "ats_score": 78,
-  "score_breakdown": {
-    "keyword_match": 85,
-    "formatting": 70,
-    "section_structure": 80,
-    "readability": 75
+  "ats_score": 82.7,
+  "breakdown": {
+    "keyword_match": 0.84,
+    "semantic_similarity": 0.79,
+    "experience_relevance": 0.85
   },
   "keyword_analysis": {
-    "matched_keywords": ["JavaScript", "React", "Node.js"],
-    "missing_keywords": ["Docker", "Kubernetes"],
-    "keyword_density": "3.2%",
-    "optimal_density": "2-4%"
+    "matched_keywords": ["Python", "SQL"],
+    "missing_keywords": ["Machine Learning", "AWS"]
   },
-  "formatting_issues": [
-    "Use standard section headers",
-    "Add more bullet points",
-    "Include contact information"
-  ],
-  "improvement_suggestions": [
-    "Add 'Docker' and 'Kubernetes' to skills section",
-    "Quantify achievements with specific metrics",
-    "Use action verbs to start bullet points"
-  ],
+  "semantic_analysis": {
+    "similarity_score": 0.79,
+    "missing_semantic_concepts": ["Machine Learning"]
+  },
+  "experience_analysis": {
+    "role_relevance": 0.85,
+    "industry_alignment": 0.80
+  },
+  "feedback": "Add Machine Learning skills and quantify achievements",
   "pass_probability": 82
-}
-
-Return only valid JSON.`;
+}`;
 
       const result = await this.generativeModel.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json'
         }
       });
@@ -226,11 +218,15 @@ Return only valid JSON.`;
   // Utility methods
   safeParseJson(text) {
     try {
+      if (!text || typeof text !== 'string') return null;
+      
       // Normalize smart quotes and remove code fences
       let cleaned = (text || '')
         .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
         .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
         .replace(/```(?:json)?/gi, '')
+        .replace(/^[^{]*/, '') // Remove any text before the first {
+        .replace(/[^}]*$/, '') // Remove any text after the last }
         .trim();
       
       // Try direct parse first
@@ -244,7 +240,7 @@ Return only valid JSON.`;
         return JSON.parse(noTrailingCommas);
       } catch (_) {}
 
-      // Find JSON object boundaries
+      // Find JSON object boundaries more robustly
       let inString = false;
       let escapeNext = false;
       let depth = 0;
@@ -261,10 +257,48 @@ Return only valid JSON.`;
           if (depth > 0) depth--;
           if (depth === 0 && start !== -1) {
             const candidate = cleaned.slice(start, i + 1);
-            try { return JSON.parse(candidate); } catch (_) { /* continue */ }
+            try { 
+              const parsed = JSON.parse(candidate);
+              if (parsed && typeof parsed === 'object') {
+                return parsed;
+              }
+            } catch (_) { /* continue */ }
           }
         }
       }
+      
+      // Last resort: try to extract JSON from the entire text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (_) {}
+      }
+      
+      // Try to fix truncated JSON by closing incomplete strings and objects
+      try {
+        let fixedJson = cleaned;
+        
+        // Count unclosed quotes and close them
+        const quoteCount = (fixedJson.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) {
+          fixedJson += '"';
+        }
+        
+        // Count unclosed braces and close them
+        const openBraces = (fixedJson.match(/\{/g) || []).length;
+        const closeBraces = (fixedJson.match(/\}/g) || []).length;
+        const missingBraces = openBraces - closeBraces;
+        
+        if (missingBraces > 0) {
+          // Add missing closing braces
+          for (let i = 0; i < missingBraces; i++) {
+            fixedJson += '}';
+          }
+        }
+        
+        return JSON.parse(fixedJson);
+      } catch (_) {}
       
       return null;
     } catch (error) {

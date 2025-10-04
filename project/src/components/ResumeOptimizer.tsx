@@ -844,10 +844,10 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
 
             {/* Score Breakdown */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {Object.entries(atsAnalysis.score_breakdown ?? {}).map(([key, value]) => (
+              {Object.entries(atsAnalysis.breakdown ?? atsAnalysis.score_breakdown ?? {}).map(([key, value]) => (
                 <div key={key} className="text-center">
-                  <div className={`text-2xl font-bold ${getScoreColor(Number(value) || 0)}`}>
-                    {Number(value) || 0}
+                  <div className={`text-2xl font-bold ${getScoreColor(Math.round((Number(value) || 0) * 100))}`}>
+                    {Math.round((Number(value) || 0) * 100)}
                   </div>
                   <div className="text-sm text-gray-600 capitalize">
                     {key.replace('_', ' ')}
@@ -867,7 +867,7 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
             </div>
 
             {/* Keyword Analysis */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h4 className="font-semibold text-green-800 mb-2">Matched Keywords</h4>
                 <div className="flex flex-wrap gap-2">
@@ -889,6 +889,72 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Semantic Analysis */}
+            {atsAnalysis.semantic_analysis && (
+              <div className="bg-blue-50 p-4 rounded-xl mb-6">
+                <h4 className="font-semibold text-blue-800 mb-3">Semantic Analysis</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Similarity Score</p>
+                    <p className="text-lg font-bold text-blue-600">
+                      {Math.round((atsAnalysis.semantic_analysis.similarity_score || 0) * 100)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Missing Concepts</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(atsAnalysis.semantic_analysis.missing_semantic_concepts || []).map((concept, index) => (
+                        <span key={index} className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">
+                          {concept}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Experience Analysis */}
+            {atsAnalysis.experience_analysis && (
+              <div className="bg-purple-50 p-4 rounded-xl mb-6">
+                <h4 className="font-semibold text-purple-800 mb-3">Experience Analysis</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Role Relevance</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {Math.round((atsAnalysis.experience_analysis.role_relevance || 0) * 100)}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Industry Alignment</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {Math.round((atsAnalysis.experience_analysis.industry_alignment || 0) * 100)}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Achievement Impact</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {Math.round((atsAnalysis.experience_analysis.achievement_impact || 0) * 100)}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Years Match</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {atsAnalysis.experience_analysis.years_match ? '✓' : '✗'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {atsAnalysis.feedback && (
+              <div className="bg-yellow-50 p-4 rounded-xl mb-6">
+                <h4 className="font-semibold text-yellow-800 mb-2">AI Feedback</h4>
+                <p className="text-gray-700">{atsAnalysis.feedback}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

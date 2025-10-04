@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, DollarSign, MapPin, Building2, 
   Brain, Target, Calendar, AlertTriangle,
-  BarChart3, LineChart, PieChart, Activity,
-  Sparkles, Zap, Award, RefreshCw
+  BarChart3, Activity,
+  Sparkles, Award, RefreshCw
 } from 'lucide-react';
 
 const API_BASE = (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
@@ -73,17 +73,182 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
   const [isLoadingTrajectory, setIsLoadingTrajectory] = useState(false);
   const [isLoadingMarket, setIsLoadingMarket] = useState(false);
   const [isLoadingSalary, setIsLoadingSalary] = useState(false);
-
-  const defaultProfile = {
-    skills: ['JavaScript', 'React', 'Node.js', 'Python', 'SQL'],
-    targetRole: 'Senior Software Engineer',
+  
+  // Profile state management
+  const [currentProfile, setCurrentProfile] = useState({
+    skills: [],
+    targetRole: '',
     experienceLevel: 'Mid',
     location: 'Remote'
+  });
+  
+  // Skills search state
+  const [skillSearchTerm, setSkillSearchTerm] = useState('');
+
+  const roleOptions = [
+    { value: 'software-engineer', label: 'Software Engineer' },
+    { value: 'data-analyst', label: 'Data Analyst' },
+    { value: 'product-manager', label: 'Product Manager' },
+    { value: 'ux-designer', label: 'UX Designer' },
+    { value: 'data-scientist', label: 'Data Scientist' },
+    { value: 'devops-engineer', label: 'DevOps Engineer' },
+    { value: 'machine-learning-engineer', label: 'ML Engineer' },
+    { value: 'full-stack-developer', label: 'Full Stack Developer' },
+    { value: 'backend-developer', label: 'Backend Developer' },
+    { value: 'frontend-developer', label: 'Frontend Developer' },
+    { value: 'cloud-architect', label: 'Cloud Architect' },
+    { value: 'cybersecurity-analyst', label: 'Cybersecurity Analyst' }
+  ];
+
+  const experienceOptions = [
+    { value: 'Entry', label: 'Entry Level (0-2 years)' },
+    { value: 'Mid', label: 'Mid Level (3-5 years)' },
+    { value: 'Senior', label: 'Senior Level (6-10 years)' },
+    { value: 'Lead', label: 'Lead/Principal (10+ years)' },
+    { value: 'Executive', label: 'Executive Level (15+ years)' }
+  ];
+
+  const locationOptions = [
+    { value: 'Remote', label: 'Remote' },
+    { value: 'San Francisco, CA', label: 'San Francisco, CA' },
+    { value: 'New York, NY', label: 'New York, NY' },
+    { value: 'Seattle, WA', label: 'Seattle, WA' },
+    { value: 'Austin, TX', label: 'Austin, TX' },
+    { value: 'Boston, MA', label: 'Boston, MA' },
+    { value: 'Chicago, IL', label: 'Chicago, IL' },
+    { value: 'Denver, CO', label: 'Denver, CO' },
+    { value: 'Los Angeles, CA', label: 'Los Angeles, CA' },
+    { value: 'Miami, FL', label: 'Miami, FL' },
+    { value: 'Toronto, ON', label: 'Toronto, ON' },
+    { value: 'London, UK', label: 'London, UK' },
+    { value: 'Berlin, Germany', label: 'Berlin, Germany' },
+    { value: 'Singapore', label: 'Singapore' },
+    { value: 'Other', label: 'Other' }
+  ];
+
+  // Role-based skill recommendations
+  const roleSkillsMap = {
+    'software-engineer': ['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Git', 'AWS', 'Docker'],
+    'data-analyst': ['Python', 'SQL', 'Excel', 'Tableau', 'Power BI', 'Data Analysis', 'Statistics', 'Pandas'],
+    'product-manager': ['Product Strategy', 'Agile', 'Scrum', 'Analytics', 'User Research', 'Roadmapping', 'Leadership'],
+    'ux-designer': ['Figma', 'Sketch', 'Adobe Creative Suite', 'User Research', 'Prototyping', 'Wireframing', 'Design Systems'],
+    'data-scientist': ['Python', 'R', 'Machine Learning', 'TensorFlow', 'PyTorch', 'Statistics', 'SQL', 'Jupyter'],
+    'devops-engineer': ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins', 'Linux', 'Python', 'Monitoring'],
+    'machine-learning-engineer': ['Python', 'TensorFlow', 'PyTorch', 'MLOps', 'Docker', 'Kubernetes', 'AWS', 'Git'],
+    'full-stack-developer': ['JavaScript', 'React', 'Node.js', 'Python', 'SQL', 'MongoDB', 'Git', 'AWS'],
+    'backend-developer': ['Python', 'Java', 'Node.js', 'SQL', 'MongoDB', 'Redis', 'Docker', 'AWS'],
+    'frontend-developer': ['JavaScript', 'React', 'Vue.js', 'HTML/CSS', 'TypeScript', 'SASS/SCSS', 'Git'],
+    'cloud-architect': ['AWS', 'Azure', 'GCP', 'Terraform', 'Kubernetes', 'Docker', 'Security', 'Networking'],
+    'cybersecurity-analyst': ['Security Frameworks', 'Penetration Testing', 'Risk Assessment', 'Compliance', 'Incident Response', 'Python']
   };
 
-  const profile = userProfile || defaultProfile;
+  const skillOptions = [
+    // Programming Languages
+    { value: 'JavaScript', label: 'JavaScript', category: 'Programming' },
+    { value: 'Python', label: 'Python', category: 'Programming' },
+    { value: 'Java', label: 'Java', category: 'Programming' },
+    { value: 'TypeScript', label: 'TypeScript', category: 'Programming' },
+    { value: 'C++', label: 'C++', category: 'Programming' },
+    { value: 'C#', label: 'C#', category: 'Programming' },
+    { value: 'Go', label: 'Go', category: 'Programming' },
+    { value: 'Rust', label: 'Rust', category: 'Programming' },
+    { value: 'Swift', label: 'Swift', category: 'Programming' },
+    { value: 'Kotlin', label: 'Kotlin', category: 'Programming' },
+    { value: 'R', label: 'R', category: 'Programming' },
+    
+    // Frontend
+    { value: 'React', label: 'React', category: 'Frontend' },
+    { value: 'Vue.js', label: 'Vue.js', category: 'Frontend' },
+    { value: 'Angular', label: 'Angular', category: 'Frontend' },
+    { value: 'HTML/CSS', label: 'HTML/CSS', category: 'Frontend' },
+    { value: 'SASS/SCSS', label: 'SASS/SCSS', category: 'Frontend' },
+    
+    // Backend
+    { value: 'Node.js', label: 'Node.js', category: 'Backend' },
+    { value: 'Express.js', label: 'Express.js', category: 'Backend' },
+    { value: 'Django', label: 'Django', category: 'Backend' },
+    { value: 'Flask', label: 'Flask', category: 'Backend' },
+    { value: 'Spring Boot', label: 'Spring Boot', category: 'Backend' },
+    { value: 'FastAPI', label: 'FastAPI', category: 'Backend' },
+    
+    // Databases
+    { value: 'SQL', label: 'SQL', category: 'Database' },
+    { value: 'PostgreSQL', label: 'PostgreSQL', category: 'Database' },
+    { value: 'MySQL', label: 'MySQL', category: 'Database' },
+    { value: 'MongoDB', label: 'MongoDB', category: 'Database' },
+    { value: 'Redis', label: 'Redis', category: 'Database' },
+    { value: 'Elasticsearch', label: 'Elasticsearch', category: 'Database' },
+    
+    // Cloud & DevOps
+    { value: 'AWS', label: 'AWS', category: 'Cloud' },
+    { value: 'Azure', label: 'Azure', category: 'Cloud' },
+    { value: 'GCP', label: 'Google Cloud', category: 'Cloud' },
+    { value: 'Docker', label: 'Docker', category: 'DevOps' },
+    { value: 'Kubernetes', label: 'Kubernetes', category: 'DevOps' },
+    { value: 'Terraform', label: 'Terraform', category: 'DevOps' },
+    { value: 'Jenkins', label: 'Jenkins', category: 'DevOps' },
+    { value: 'Linux', label: 'Linux', category: 'DevOps' },
+    
+    // Data & Analytics
+    { value: 'Data Analysis', label: 'Data Analysis', category: 'Data' },
+    { value: 'Machine Learning', label: 'Machine Learning', category: 'Data' },
+    { value: 'Power BI', label: 'Power BI', category: 'Data' },
+    { value: 'Tableau', label: 'Tableau', category: 'Data' },
+    { value: 'Pandas', label: 'Pandas', category: 'Data' },
+    { value: 'NumPy', label: 'NumPy', category: 'Data' },
+    { value: 'TensorFlow', label: 'TensorFlow', category: 'Data' },
+    { value: 'PyTorch', label: 'PyTorch', category: 'Data' },
+    { value: 'Statistics', label: 'Statistics', category: 'Data' },
+    { value: 'Excel', label: 'Excel', category: 'Data' },
+    { value: 'Jupyter', label: 'Jupyter', category: 'Data' },
+    
+    // Design & UX
+    { value: 'Figma', label: 'Figma', category: 'Design' },
+    { value: 'Sketch', label: 'Sketch', category: 'Design' },
+    { value: 'Adobe Creative Suite', label: 'Adobe Creative Suite', category: 'Design' },
+    { value: 'User Research', label: 'User Research', category: 'Design' },
+    { value: 'Prototyping', label: 'Prototyping', category: 'Design' },
+    { value: 'Wireframing', label: 'Wireframing', category: 'Design' },
+    { value: 'Design Systems', label: 'Design Systems', category: 'Design' },
+    
+    // Security
+    { value: 'Security Frameworks', label: 'Security Frameworks', category: 'Security' },
+    { value: 'Penetration Testing', label: 'Penetration Testing', category: 'Security' },
+    { value: 'Risk Assessment', label: 'Risk Assessment', category: 'Security' },
+    { value: 'Compliance', label: 'Compliance', category: 'Security' },
+    { value: 'Incident Response', label: 'Incident Response', category: 'Security' },
+    
+    // Management & Soft Skills
+    { value: 'Git', label: 'Git', category: 'Tools' },
+    { value: 'Agile', label: 'Agile', category: 'Management' },
+    { value: 'Scrum', label: 'Scrum', category: 'Management' },
+    { value: 'Leadership', label: 'Leadership', category: 'Management' },
+    { value: 'Project Management', label: 'Project Management', category: 'Management' },
+    { value: 'Product Strategy', label: 'Product Strategy', category: 'Management' },
+    { value: 'Analytics', label: 'Analytics', category: 'Management' },
+    { value: 'Roadmapping', label: 'Roadmapping', category: 'Management' },
+    { value: 'MLOps', label: 'MLOps', category: 'Tools' },
+    { value: 'Monitoring', label: 'Monitoring', category: 'Tools' },
+    { value: 'Networking', label: 'Networking', category: 'Tools' }
+  ];
+
+  // Get filtered skills based on selected role
+  const getFilteredSkills = () => {
+    if (!profile.targetRole) return skillOptions;
+    
+    const roleSkills = roleSkillsMap[profile.targetRole] || [];
+    const recommendedSkills = skillOptions.filter(skill => roleSkills.includes(skill.value));
+    const otherSkills = skillOptions.filter(skill => !roleSkills.includes(skill.value));
+    
+    return [...recommendedSkills, ...otherSkills];
+  };
+
+  const profile = userProfile || currentProfile;
 
   useEffect(() => {
+    // Only auto-generate if we have a target role selected
+    if (!profile.targetRole) return;
+    
     if (activeTab === 'trajectory' && !trajectory) {
       generateCareerTrajectory();
     } else if (activeTab === 'market' && !marketReport) {
@@ -91,7 +256,7 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
     } else if (activeTab === 'salary' && !salaryData) {
       generateSalaryPrediction();
     }
-  }, [activeTab]);
+  }, [activeTab, profile.targetRole]);
 
   const generateCareerTrajectory = async () => {
     setIsLoadingTrajectory(true);
@@ -225,29 +390,238 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
         </p>
       </div>
 
+      {/* Quick Start for New Users */}
+      {!profile.targetRole && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200 mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4 text-center">🚀 Quick Start</h3>
+          <p className="text-gray-600 text-center mb-4">Get started quickly by selecting a popular role:</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { role: 'software-engineer', label: '👨‍💻 Software Engineer', color: 'bg-blue-100 text-blue-800 hover:bg-blue-200' },
+              { role: 'data-analyst', label: '📊 Data Analyst', color: 'bg-green-100 text-green-800 hover:bg-green-200' },
+              { role: 'product-manager', label: '🎯 Product Manager', color: 'bg-purple-100 text-purple-800 hover:bg-purple-200' },
+              { role: 'ux-designer', label: '🎨 UX Designer', color: 'bg-pink-100 text-pink-800 hover:bg-pink-200' }
+            ].map(({ role, label, color }) => (
+              <button
+                key={role}
+                onClick={() => {
+                  const newProfile = { 
+                    ...currentProfile, 
+                    targetRole: role,
+                    skills: roleSkillsMap[role] || []
+                  };
+                  setCurrentProfile(newProfile);
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${color}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Profile Summary */}
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Your Profile</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="text-center">
             <Target className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Target Role</p>
-            <p className="font-semibold text-gray-900">{profile.targetRole}</p>
+            <p className="text-sm text-gray-600 mb-2">Target Role</p>
+            <select 
+              value={profile.targetRole}
+              onChange={(e) => {
+                const selectedRole = e.target.value;
+                const newProfile = { 
+                  ...currentProfile, 
+                  targetRole: selectedRole,
+                  // Auto-suggest skills for the selected role
+                  skills: selectedRole && roleSkillsMap[selectedRole] ? 
+                    [...new Set([...currentProfile.skills, ...roleSkillsMap[selectedRole]])] : 
+                    currentProfile.skills
+                };
+                setCurrentProfile(newProfile);
+                // Clear cached data to force regeneration
+                setTrajectory(null);
+                setMarketReport(null);
+                setSalaryData(null);
+              }}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
+              <option value="">Select a role...</option>
+              {roleOptions.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="text-center">
             <Activity className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Experience</p>
-            <p className="font-semibold text-gray-900">{profile.experienceLevel}</p>
+            <p className="text-sm text-gray-600 mb-2">Experience</p>
+            <select 
+              value={profile.experienceLevel}
+              onChange={(e) => {
+                const newProfile = { ...currentProfile, experienceLevel: e.target.value };
+                setCurrentProfile(newProfile);
+                setTrajectory(null);
+                setMarketReport(null);
+                setSalaryData(null);
+              }}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
+              {experienceOptions.map(exp => (
+                <option key={exp.value} value={exp.value}>
+                  {exp.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="text-center">
             <MapPin className="h-6 w-6 text-green-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Location</p>
-            <p className="font-semibold text-gray-900">{profile.location}</p>
+            <p className="text-sm text-gray-600 mb-2">Location</p>
+            <select 
+              value={profile.location}
+              onChange={(e) => {
+                const newProfile = { ...currentProfile, location: e.target.value };
+                setCurrentProfile(newProfile);
+                setTrajectory(null);
+                setMarketReport(null);
+                setSalaryData(null);
+              }}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-center bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
+              {locationOptions.map(location => (
+                <option key={location.value} value={location.value}>
+                  {location.label}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="text-center">
-            <Zap className="h-6 w-6 text-orange-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Skills</p>
-            <p className="font-semibold text-gray-900">{profile.skills?.length || 0} skills</p>
+          <div className="text-center col-span-1 md:col-span-4">
+            <Brain className="h-6 w-6 text-orange-600 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 mb-3">Skills</p>
+            
+            {/* Skill search */}
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Search skills..."
+                value={skillSearchTerm}
+                onChange={(e) => setSkillSearchTerm(e.target.value)}
+                className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Skill selection controls */}
+            <div className="flex justify-center space-x-2 mb-3">
+              <button
+                onClick={() => {
+                  const allSkills = skillOptions.map(skill => skill.value);
+                  const newProfile = { ...currentProfile, skills: allSkills };
+                  setCurrentProfile(newProfile);
+                  setTrajectory(null);
+                  setMarketReport(null);
+                  setSalaryData(null);
+                }}
+                className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 transition-colors"
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => {
+                  const newProfile = { ...currentProfile, skills: [] };
+                  setCurrentProfile(newProfile);
+                  setTrajectory(null);
+                  setMarketReport(null);
+                  setSalaryData(null);
+                }}
+                className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                Clear All
+              </button>
+            </div>
+            
+            {/* Role-based skill suggestions */}
+            {profile.targetRole && roleSkillsMap[profile.targetRole] && (
+              <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  💡 Recommended skills for {roleOptions.find(r => r.value === profile.targetRole)?.label}:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {roleSkillsMap[profile.targetRole].map(skill => (
+                    <button
+                      key={skill}
+                      onClick={() => {
+                        const currentSkills = profile.skills || [];
+                        if (!currentSkills.includes(skill)) {
+                          const newProfile = { ...currentProfile, skills: [...currentSkills, skill] };
+                          setCurrentProfile(newProfile);
+                          setTrajectory(null);
+                          setMarketReport(null);
+                          setSalaryData(null);
+                        }
+                      }}
+                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                        profile.skills?.includes(skill)
+                          ? 'bg-green-100 text-green-800 cursor-default'
+                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
+                      }`}
+                      disabled={profile.skills?.includes(skill)}
+                    >
+                      {skill} {profile.skills?.includes(skill) ? '✓' : '+'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-white">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {getFilteredSkills()
+                  .filter(skill => 
+                    skill.label.toLowerCase().includes(skillSearchTerm.toLowerCase()) ||
+                    skill.value.toLowerCase().includes(skillSearchTerm.toLowerCase())
+                  )
+                  .map(skill => {
+                    const isRecommended = profile.targetRole && roleSkillsMap[profile.targetRole]?.includes(skill.value);
+                    return (
+                      <label key={skill.value} className={`flex items-center space-x-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded ${
+                        isRecommended ? 'bg-blue-50 border border-blue-200' : ''
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={profile.skills?.includes(skill.value) || false}
+                          onChange={(e) => {
+                            const currentSkills = profile.skills || [];
+                            const newSkills = e.target.checked
+                              ? [...currentSkills, skill.value]
+                              : currentSkills.filter(s => s !== skill.value);
+                            const newProfile = { ...currentProfile, skills: newSkills };
+                            setCurrentProfile(newProfile);
+                            setTrajectory(null);
+                            setMarketReport(null);
+                            setSalaryData(null);
+                          }}
+                          className="w-3 h-3 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                        />
+                        <span className={`truncate ${isRecommended ? 'text-blue-800 font-medium' : 'text-gray-700'}`}>
+                          {skill.label} {isRecommended ? '⭐' : ''}
+                        </span>
+                      </label>
+                    );
+                  })}
+              </div>
+              {skillSearchTerm && getFilteredSkills().filter(skill => 
+                skill.label.toLowerCase().includes(skillSearchTerm.toLowerCase()) ||
+                skill.value.toLowerCase().includes(skillSearchTerm.toLowerCase())
+              ).length === 0 && (
+                <p className="text-center text-gray-500 text-sm py-4">No skills found matching "{skillSearchTerm}"</p>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Selected: {profile.skills?.length || 0} skills
+            </p>
           </div>
         </div>
       </div>      {/*
@@ -276,7 +650,18 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
       {/* Career Trajectory Tab */}
       {activeTab === 'trajectory' && (
         <div className="space-y-6">
-          {isLoadingTrajectory ? (
+          {!profile.targetRole ? (
+            <div className="text-center py-12">
+              <Target className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Select Your Target Role</h3>
+              <p className="text-gray-600 mb-6">Choose a target role above to get AI-powered career trajectory predictions and personalized recommendations.</p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
+                <p className="text-sm text-yellow-800">
+                  💡 <strong>Tip:</strong> Selecting a role will automatically suggest relevant skills and provide tailored career insights using our RAG-powered intelligence system.
+                </p>
+              </div>
+            </div>
+          ) : isLoadingTrajectory ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-8 w-8 animate-spin text-purple-600 mr-3" />
               <span className="text-lg text-gray-600">Predicting your career trajectory...</span>
@@ -390,10 +775,20 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
             <div className="text-center py-12">
               <button
                 onClick={generateCareerTrajectory}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:shadow-xl transition-all duration-300"
+                disabled={!profile.targetRole || !profile.skills?.length}
+                className={`px-6 py-3 rounded-xl transition-all duration-300 ${
+                  profile.targetRole && profile.skills?.length
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-xl'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 Generate Career Trajectory
               </button>
+              {(!profile.targetRole || !profile.skills?.length) && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {!profile.targetRole ? 'Please select a target role first' : 'Please select at least one skill'}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -402,7 +797,18 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
       {/* Market Intelligence Tab */}
       {activeTab === 'market' && (
         <div className="space-y-6">
-          {isLoadingMarket ? (
+          {!profile.targetRole ? (
+            <div className="text-center py-12">
+              <BarChart3 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Select Your Target Role</h3>
+              <p className="text-gray-600 mb-6">Choose a target role to get real-time market intelligence and skill demand analysis.</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                <p className="text-sm text-blue-800">
+                  📊 <strong>Market Intelligence:</strong> Get insights on skill trends, company hiring patterns, and personalized recommendations based on current market data.
+                </p>
+              </div>
+            </div>
+          ) : isLoadingMarket ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mr-3" />
               <span className="text-lg text-gray-600">Analyzing market trends...</span>
@@ -491,10 +897,18 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
             <div className="text-center py-12">
               <button
                 onClick={generateMarketReport}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-xl hover:shadow-xl transition-all duration-300"
+                disabled={!profile.targetRole}
+                className={`px-6 py-3 rounded-xl transition-all duration-300 ${
+                  profile.targetRole
+                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:shadow-xl'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 Generate Market Report
               </button>
+              {!profile.targetRole && (
+                <p className="text-sm text-gray-500 mt-2">Please select a target role first</p>
+              )}
             </div>
           )}
         </div>
@@ -503,7 +917,18 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
       {/* Salary Insights Tab */}
       {activeTab === 'salary' && (
         <div className="space-y-6">
-          {isLoadingSalary ? (
+          {!profile.targetRole ? (
+            <div className="text-center py-12">
+              <DollarSign className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Select Your Target Role</h3>
+              <p className="text-gray-600 mb-6">Choose a target role to get salary predictions and compensation insights.</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
+                <p className="text-sm text-green-800">
+                  💰 <strong>Salary Intelligence:</strong> Get location-adjusted salary ranges, growth projections, and negotiation insights based on your role and experience.
+                </p>
+              </div>
+            </div>
+          ) : isLoadingSalary ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-8 w-8 animate-spin text-green-600 mr-3" />
               <span className="text-lg text-gray-600">Calculating salary predictions...</span>
@@ -589,10 +1014,18 @@ const CareerIntelligence: React.FC<CareerIntelligenceProps> = ({ userProfile }) 
             <div className="text-center py-12">
               <button
                 onClick={generateSalaryPrediction}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:shadow-xl transition-all duration-300"
+                disabled={!profile.targetRole}
+                className={`px-6 py-3 rounded-xl transition-all duration-300 ${
+                  profile.targetRole
+                    ? 'bg-gradient-to-r from-green-600 to-teal-600 text-white hover:shadow-xl'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 Generate Salary Insights
               </button>
+              {!profile.targetRole && (
+                <p className="text-sm text-gray-500 mt-2">Please select a target role first</p>
+              )}
             </div>
           )}
         </div>

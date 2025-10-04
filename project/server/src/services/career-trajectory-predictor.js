@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { VertexAI } from '@google-cloud/vertexai';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { enhancedRAGAnalyzer } from './enhanced-rag-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,16 +52,27 @@ export class CareerTrajectoryPredictor {
     }
 
     try {
-      const prompt = `You are an expert career strategist and market analyst. Predict a realistic career trajectory.
+      // Use RAG analysis to get market insights
+      let ragInsights = null;
+      try {
+        const ragAnalysis = await enhancedRAGAnalyzer.analyzeResumeWithEnhancedRAG(
+          `Skills: ${resumeData.skills?.join(', ') || 'N/A'}\nExperience: ${resumeData.experienceLevel || 'Entry Level'}\nCurrent Role: ${resumeData.currentRole || 'Not specified'}`,
+          `Target Role: ${targetRole}`,
+          targetRole
+        );
+        ragInsights = ragAnalysis;
+        console.log('RAG analysis completed for career trajectory');
+      } catch (ragError) {
+        console.warn('RAG analysis failed, proceeding without market insights:', ragError.message);
+      }
 
-CURRENT PROFILE:
-Skills: ${resumeData.skills?.join(', ') || 'N/A'}
-Experience Level: ${resumeData.experienceLevel || 'Entry Level'}
-Current Role: ${resumeData.currentRole || 'Not specified'}
-Target Role: ${targetRole}
-Timeframe: ${timeframe}
+      const prompt = `Generate a career trajectory for a ${resumeData.experienceLevel || 'Entry Level'} professional targeting ${targetRole} over ${timeframe}.
 
-Generate a detailed career trajectory prediction in JSON format:
+PROFILE: Skills: ${resumeData.skills?.join(', ') || 'N/A'}, Current: ${resumeData.currentRole || 'Not specified'}
+
+${ragInsights ? `MARKET DATA: Present: ${ragInsights.skills_present?.join(', ') || 'N/A'}, Missing: ${ragInsights.skills_missing?.join(', ') || 'N/A'}, Match: ${ragInsights.match_score || 0}%` : ''}
+
+Return ONLY this JSON structure:
 {
   "career_path": [
     {
@@ -115,7 +127,7 @@ Return only valid JSON.`;
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json'
         }
       });
@@ -140,7 +152,13 @@ Return only valid JSON.`;
         ...trajectory,
         prediction_timestamp: new Date().toISOString(),
         model_used: this.model,
-        success: true
+        success: true,
+        rag_insights: ragInsights ? {
+          skills_analysis: ragInsights.skills_present ? ragInsights.skills_present : [],
+          missing_skills: ragInsights.skills_missing ? ragInsights.skills_missing : [],
+          market_match_score: ragInsights.match_score || 0,
+          external_sources_used: ragInsights.external_sources_used || 0
+        } : null
       };
 
     } catch (error) {
@@ -213,65 +231,86 @@ Return only valid JSON.`;
     }
 
     try {
-      // Remove markdown code blocks and extra whitespace
-      let cleaned = text.replace(/```(?:json)?/gi, '').trim();
+      // Normalize smart quotes and remove code fences
+      let cleaned = (text || '')
+        .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+        .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+        .replace(/```(?:json)?/gi, '')
+        .replace(/^[^{]*/, '') // Remove any text before the first {
+        .replace(/[^}]*$/, '') // Remove any text after the last }
+        .trim();
       
-      // Try direct parsing first
-      try { 
-        return JSON.parse(cleaned); 
-      } catch (_) {
-        // Continue to more complex parsing
-      }
-      
-      // Remove any leading/trailing non-JSON content
-      cleaned = cleaned.replace(/^[^{]*/, '').replace(/[^}]*$/, '');
-      
-      if (!cleaned) {
-        return null;
-      }
-
-      // Try parsing the cleaned version
+      // Try direct parse first
       try {
         return JSON.parse(cleaned);
-      } catch (_) {
-        // Continue to bracket matching
-      }
+      } catch (_) {}
       
-      // Find the first complete JSON object using bracket matching
-      let inString = false, escapeNext = false, depth = 0, start = -1;
+      // Attempt to remove trailing commas
+      try {
+        const noTrailingCommas = cleaned.replace(/,\s*([}\]])/g, '$1');
+        return JSON.parse(noTrailingCommas);
+      } catch (_) {}
+
+      // Find JSON object boundaries more robustly
+      let inString = false;
+      let escapeNext = false;
+      let depth = 0;
+      let start = -1;
+      
       for (let i = 0; i < cleaned.length; i++) {
         const ch = cleaned[i];
-        if (escapeNext) { 
-          escapeNext = false; 
-          continue; 
-        }
-        if (ch === '\\') { 
-          if (inString) escapeNext = true; 
-          continue; 
-        }
-        if (ch === '"') { 
-          inString = !inString; 
-          continue; 
-        }
+        if (escapeNext) { escapeNext = false; continue; }
+        if (ch === '\\') { if (inString) escapeNext = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
         if (inString) continue;
-        
-        if (ch === '{') { 
-          if (depth === 0) start = i; 
-          depth++; 
-          continue; 
-        }
+        if (ch === '{') { if (depth === 0) start = i; depth++; continue; }
         if (ch === '}') {
           if (depth > 0) depth--;
           if (depth === 0 && start !== -1) {
             const candidate = cleaned.slice(start, i + 1);
             try { 
-              return JSON.parse(candidate); 
-            } catch (_) { 
-              // Continue searching for other JSON objects
-            }
+              const parsed = JSON.parse(candidate);
+              if (parsed && typeof parsed === 'object') {
+                return parsed;
+              }
+            } catch (_) { /* continue */ }
           }
         }
       }
+      
+      // Try to fix common truncation patterns
+      try {
+        let fixedJson = cleaned;
+        
+        // Handle skills_to_develop array truncation
+        if (fixedJson.includes('"skills_to_develop": [')) {
+          const skillsStart = fixedJson.indexOf('"skills_to_develop": [');
+          const skillsEnd = fixedJson.indexOf(']', skillsStart);
+          if (skillsEnd === -1) {
+            // Array was truncated, close it
+            fixedJson = fixedJson.substring(0, skillsStart + 22) + ']';
+          }
+        }
+        
+        // Handle incomplete strings
+        const lastQuote = fixedJson.lastIndexOf('"');
+        const lastComma = fixedJson.lastIndexOf(',');
+        if (lastQuote < lastComma) {
+          // String was truncated, close it
+          fixedJson = fixedJson.substring(0, lastComma) + '"';
+        }
+        
+        return JSON.parse(fixedJson);
+      } catch (_) {}
+      
+      // Last resort: try to extract JSON from the entire text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (_) {}
+      }
+      
       return null;
     } catch (error) {
       console.warn('JSON parsing error:', error.message);
