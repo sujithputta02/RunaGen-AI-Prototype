@@ -18,6 +18,7 @@ import MentorService from './services/mentor-service.js';
 import SimulationService from './services/simulation-service.js';
 import TelemetryService from './services/telemetry-service.js';
 import { YouTubeService } from './services/youtube-service.js';
+import FallbackAIService from './services/fallback-ai-service.js';
 import Analysis from './models/Analysis.js';
 import Roadmap from './models/Roadmap.js';
 import Simulation from './models/Simulation.js';
@@ -111,7 +112,7 @@ function createVertexAIInstance() {
 }
 
 // Initialize services (conditionally to avoid startup errors)
-let mentorService, simulationService, telemetryService, youtubeService;
+let mentorService, simulationService, telemetryService, youtubeService, fallbackAIService;
 
 try {
   if (googleAuthReady) {
@@ -119,10 +120,15 @@ try {
     simulationService = new SimulationService();
     telemetryService = new TelemetryService();
     youtubeService = new YouTubeService();
+    fallbackAIService = new FallbackAIService();
     console.log('AI Mentor services initialized successfully');
   } else {
     console.warn('AI Mentor services disabled due to authentication issues');
   }
+  
+  // Always initialize fallback AI service
+  fallbackAIService = new FallbackAIService();
+  console.log('Fallback AI service initialized');
 } catch (error) {
   console.warn('AI Mentor services initialization failed:', error.message);
   console.warn('Mentor features will be disabled');
@@ -711,11 +717,21 @@ app.post('/optimize-resume', async (req, res) => {
       });
     }
     
-    const optimization = await resumeOptimizer.optimizeResume(
-      resumeText, 
-      targetRole, 
-      jobDescriptions
-    );
+    let optimization;
+    try {
+      optimization = await resumeOptimizer.optimizeResume(
+        resumeText, 
+        targetRole, 
+        jobDescriptions
+      );
+    } catch (error) {
+      console.warn('Resume optimizer failed, using fallback:', error.message);
+      optimization = await fallbackAIService.generateResumeOptimization(
+        resumeText, 
+        targetRole, 
+        jobDescriptions
+      );
+    }
     
     res.json({
       success: true,
@@ -978,11 +994,21 @@ app.post('/predict-career-trajectory', async (req, res) => {
       });
     }
     
-    const trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
-      resumeData, 
-      targetRole, 
-      timeframe
-    );
+    let trajectory;
+    try {
+      trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
+        resumeData, 
+        targetRole, 
+        timeframe
+      );
+    } catch (error) {
+      console.warn('Career trajectory predictor failed, using fallback:', error.message);
+      trajectory = await fallbackAIService.generateCareerTrajectory(
+        resumeData, 
+        targetRole, 
+        timeframe
+      );
+    }
     
     res.json({
       success: true,
@@ -1134,31 +1160,37 @@ app.post('/mentor', async (req, res) => {
       });
     }
     
-    // Check if mentor service is available
-    if (!mentorService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Mentor service unavailable',
-        reply_text: "I'm currently unavailable. Please try again later or contact support.",
-        bullets: ["Service is temporarily down", "Try again in a few minutes", "Contact support if the issue persists"],
-        confidence: 0,
-        sources: [],
-        actions: [],
-        badges: []
-      });
-    }
+    let response;
     
-    // Process mentor request
-    const response = await mentorService.processMentorRequest(
-      userId,
-      sessionId,
-      message,
-      {
-        resumeText,
-        jobDescription,
-        userProfile
+    // Try mentor service first, fallback to AI service if unavailable
+    if (mentorService) {
+      try {
+        response = await mentorService.processMentorRequest(
+          userId,
+          sessionId,
+          message,
+          {
+            resumeText,
+            jobDescription,
+            userProfile
+          }
+        );
+      } catch (error) {
+        console.warn('Mentor service failed, using fallback:', error.message);
+        response = await fallbackAIService.generateMentorResponse(
+          message,
+          [resumeText, jobDescription].filter(Boolean),
+          'general'
+        );
       }
-    );
+    } else {
+      // Use fallback AI service
+      response = await fallbackAIService.generateMentorResponse(
+        message,
+        [resumeText, jobDescription].filter(Boolean),
+        'general'
+      );
+    }
     
     // Track telemetry if available
     if (telemetryService) {
