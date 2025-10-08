@@ -19,17 +19,54 @@ export class EnhancedRAGAnalyzer {
       return;
     }
 
+    this.initializeVertexAI();
+  }
+
+  initializeVertexAI() {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './new/career-companion-472510-c0aa769face2.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
+    
+    // Try multiple credential file paths in order of preference
+    const credentialPaths = [
+      process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      './service-account-key.json',
+      './career-companion-472510-7dd10b4d4dcb.json',
+      './new/career-companion-472510-c0aa769face2.json'
+    ].filter(Boolean); // Remove null/undefined values
+
+    let credentialsPath = null;
+    
+    // Find the first existing credential file (synchronously)
+    for (const credPath of credentialPaths) {
+      const fullPath = path.isAbsolute(credPath) ? credPath : path.resolve(__dirname, '../../', credPath);
+      try {
+        // Use synchronous file check
+        require('fs').accessSync(fullPath);
+        credentialsPath = fullPath;
+        console.log(`Enhanced RAG: Using credentials from ${credPath}`);
+        break;
+      } catch (error) {
+        // File doesn't exist, try next one
+        continue;
+      }
+    }
 
     try {
-      this.vertexAI = new VertexAI({ 
-        project: this.project, 
-        location: this.location,
-        googleAuthOptions: { keyFile: credentialsPath }
-      });
+      if (credentialsPath) {
+        this.vertexAI = new VertexAI({ 
+          project: this.project, 
+          location: this.location,
+          googleAuthOptions: { keyFile: credentialsPath }
+        });
+      } else {
+        // Try using default credentials (gcloud auth application-default login)
+        console.log('Enhanced RAG: No credential file found, trying default credentials');
+        this.vertexAI = new VertexAI({ 
+          project: this.project, 
+          location: this.location
+        });
+      }
+      
       this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
       this.isConfigured = true;
     } catch (error) {
