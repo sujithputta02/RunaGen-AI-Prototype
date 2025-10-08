@@ -50,7 +50,8 @@ temp/
 # Server specific
 server/temp/
 server/data/conversations/*.json
-server/career-companion-*.json
+# Note: service-account-key.json is included for hackathon evaluation
+# In production, this should be excluded and set up individually
 
 # Vercel
 .vercel

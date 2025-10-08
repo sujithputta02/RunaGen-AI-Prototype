@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "career-companion-472510",
+  "private_key_id": "c0aa769face26b5e8fc5354b203bf03fdbd681b0",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQD8Mfoy3N0YOo8h\nEDg5NEA+KrMGKp8frLYiS24dPMMCJM6+PnfODiUxaUpnyQbJSK9sFRQUlhS1ZRps\njJR9NrnnjtNVuSDGd62PLDx2fWiEqu0QoWgTNSceLTgC1FKdYYmAOiybF1uw36sb\nkOH+BA8spuQcgalWyLhhPTJ07qm5rOwKEnwdZNoAJqDOZL2RQK1UE/y4Yzdz4RBy\nWmaVpuaM0W09qnyHGLi2Ydo9wQeOSJQ0WcW7vjjgZPLNmD4741MjnbOWAhCcpWKD\nRjAOovZsBTxhWi0DhzXMuxzwQ3H+eDhR3gBXJ6/gG/ssVmnWLPu/V7DMZUW7Tgm3\nraV62/LpAgMBAAECggEADFtaCCE2g5QF9I+mA5aF8c3Xiv0uYgfNPkmuHehe4TVi\nvGNU7S+X/q9rJgHtb1Ich0oSm24dmmQ3attqAKccbYY74GLDYnoVctMO7NrY8swp\ntLOF5RAJCENcr9XNrPitGy9uhVRcCaLx8DY1foPeJvjP6z4mqRIJZ7lPBjf18LsZ\niMnO8K3nRNNOHH/75cICVJzvP+lv65H7S+Su8tiIoB9Qb1hzoek8Ztik+hKyZJqb\n95KqDgQnL6HC8cZGWg3e1mGfnNLCMJYKrNFb5PHhYenSdCGPeG/Gkgqc1rzMDdjY\nyKiHTRatIdXbHDCu96v7qa1R89ccjDerp/g9hiQyYQKBgQD+pIfGvGPjrJ7hL66O\naZg82d4IDNBXWx0srZVTxrG4LokmuFXwdILB+KhqO1NnEJ/bAy+K3RtHvAuDzskc\nBzJM+PXyzHsgpD+vHlB/Bp4zUnJa1PiKC3M4FEhl+yB2MZdXTW7WNeZXt9oHE431\noR1tlEcgJ7VhB2qRcNYzjYdTYQKBgQD9iht3i30TKu97ocX8ymjdAqKhANy99HB4\na/11yDFTB0J7JSTLgMiAy2m/rNT4aT/2QVQIzyxynnqctBx8DqBFYHEA/4yyQd0D\n2xs0QsMsh6UMbE1CYpQBZv8i1aKi8A3XmYLPPI1aOqeVpDmJxhxGPElEfDj+5TMc\n8Wq2quTUiQKBgAjd3cRzxt6kohuhN2jKEHz98RdCqvZ/u7JUkQCLyKBrLmdkv8lR\npUPvzp10V2EdWROdNsiVDmAfEh+S0bniHkRD3vyHVjo6veTxH0htCJEs68Jx6/2S\njH6FZkf2yJiU/XoSvitDUTP4uOTKL4VACPBJ23gpKc2pHnLWBP9ijDXBAoGBALrG\nPdvAF2DCdW+XSjoihkOiCFohP3x0EVK1Ax/8XVGz/Gapg0SjV5GByCJa2P0y09q+\nX4Cp1i2Nz/eWu5EsWScil7zLhUNgP8fyZkUGla89MfpH4lZwNmYeEQABb3Em9JuK\nTBIMonkA0qnrNDPpjLS0/qiD9pzYDeJZemqc1Dw5AoGAXx3vxVuS9Opz4zEUjehj\nJboMtFPZmHi7JAcR7V6xiGt9+dtZVPunIVc/9sTIOVTN0rhuG5fQ4jDXE2bn+oLy\nnLunbCPR3t9E+APoUgCf6m2BmrHcVMtH5Hu3yFfQ9EKBFsW67tfv+ML5L1oCpC7o\n8LS7yRGW9jxLkXNWVN5dpYY=\n-----END PRIVATE KEY-----\n",
+  "client_email": "runa-gen-ai-rag-service@career-companion-472510.iam.gserviceaccount.com",
+  "client_id": "115497124401654229611",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/runa-gen-ai-rag-service%40career-companion-472510.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

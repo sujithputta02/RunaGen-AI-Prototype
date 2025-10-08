@@ -147,18 +147,26 @@ This project demonstrates the power of Google Cloud's Generative AI services, sp
    cd ../..
    ```
 
-4. **Configure environment variables**
+4. **Set up Google Cloud credentials**
+   ```bash
+   # 1. Create a Google Cloud project and enable Vertex AI API
+   # 2. Create a service account with Vertex AI permissions
+   # 3. Download the service account key JSON file
+   # 4. Place it in the project/server directory
+   ```
+
+5. **Configure environment variables**
    ```bash
    # Create .env file in server directory
    cp project/server/.env.example project/server/.env
    
-   # Add your credentials:
-   # GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account.json
+   # Edit .env file and add your credentials:
+   # GOOGLE_APPLICATION_CREDENTIALS=./your-service-account-key.json
    # MONGODB_URI=your_mongodb_connection_string
    # YOUTUBE_API_KEY=your_youtube_api_key (optional)
    ```
 
-5. **Start the application**
+6. **Start the application**
    ```bash
    # Terminal 1: Start backend
    cd project/server
