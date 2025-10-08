@@ -31,19 +31,98 @@ import { VertexAI } from '@google-cloud/vertexai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Set up Google Cloud authentication
+function setupGoogleAuth() {
+  try {
+    // Set default environment variables if not already set
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(__dirname, '../career-companion-472510-7dd10b4d4dcb.json');
+    }
+    if (!process.env.VERTEX_PROJECT_ID) {
+      process.env.VERTEX_PROJECT_ID = 'career-companion-472510';
+    }
+    if (!process.env.VERTEX_LOCATION) {
+      process.env.VERTEX_LOCATION = 'us-central1';
+    }
+    
+    // Verify credentials file exists
+    const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (!fsSync.existsSync(credentialsPath)) {
+      console.error('❌ Google Cloud credentials file not found at:', credentialsPath);
+      console.error('Please ensure the service account key file exists and is accessible');
+      return false;
+    }
+    
+    console.log('✅ Google Cloud authentication configured');
+    console.log('📁 Credentials file:', credentialsPath);
+    console.log('🏗️ Project ID:', process.env.VERTEX_PROJECT_ID);
+    console.log('🌍 Location:', process.env.VERTEX_LOCATION);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to setup Google Cloud authentication:', error.message);
+    return false;
+  }
+}
+
+// Initialize Google Cloud authentication
+const googleAuthReady = setupGoogleAuth();
+
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json());
+
+// Helper function to create VertexAI instance with error handling
+function createVertexAIInstance() {
+  if (!googleAuthReady) {
+    console.warn('⚠️ Google Cloud authentication not properly configured');
+    return null;
+  }
+  
+  try {
+    const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+    const location = process.env.VERTEX_LOCATION || 'us-central1';
+    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
+    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
+    
+    // Try with explicit keyFile first
+    try {
+      return new VertexAI({ 
+        project, 
+        location, 
+        googleAuthOptions: { keyFile: credentialsPath } 
+      });
+    } catch (keyFileError) {
+      console.warn('⚠️ Key file authentication failed, trying Application Default Credentials...');
+      // Fallback to ADC
+      try {
+        return new VertexAI({ 
+          project, 
+          location
+        });
+      } catch (adcError) {
+        console.error('❌ Both key file and ADC authentication failed:', adcError.message);
+        return null;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to create VertexAI instance:', error.message);
+    return null;
+  }
+}
 
 // Initialize services (conditionally to avoid startup errors)
 let mentorService, simulationService, telemetryService, youtubeService;
 
 try {
-  mentorService = new MentorService();
-  simulationService = new SimulationService();
-  telemetryService = new TelemetryService();
-  youtubeService = new YouTubeService();
-  console.log('AI Mentor services initialized successfully');
+  if (googleAuthReady) {
+    mentorService = new MentorService();
+    simulationService = new SimulationService();
+    telemetryService = new TelemetryService();
+    youtubeService = new YouTubeService();
+    console.log('AI Mentor services initialized successfully');
+  } else {
+    console.warn('AI Mentor services disabled due to authentication issues');
+  }
 } catch (error) {
   console.warn('AI Mentor services initialization failed:', error.message);
   console.warn('Mentor features will be disabled');
@@ -518,7 +597,67 @@ const JOB_DATABASE = {
   ]
 };
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    persistence: persistenceMode,
+    mongoConnected: persistenceMode === 'mongo',
+    googleAuthReady: googleAuthReady
+  });
+});
+
+// AI Features test endpoint
+app.get('/test-ai', async (req, res) => {
+  try {
+    if (!googleAuthReady) {
+      return res.status(503).json({ 
+        error: 'AI features not available', 
+        reason: 'Google Cloud authentication not configured' 
+      });
+    }
+    
+    const vertex = createVertexAIInstance();
+    if (!vertex) {
+      return res.status(503).json({ 
+        error: 'AI features not available', 
+        reason: 'Google Cloud authentication failed' 
+      });
+    }
+    
+    const model = vertex.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    let result;
+    try {
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: 'Hello, this is a test. Please respond with "AI features are working!"' }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
+      });
+    } catch (aiError) {
+      return res.status(500).json({ 
+        error: 'AI features not working', 
+        reason: 'AI generation failed: ' + aiError.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    res.json({ 
+      status: 'AI features working', 
+      response: response,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('AI test failed:', error.message);
+    res.status(500).json({ 
+      error: 'AI features not working', 
+      reason: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Test endpoint to verify JD_TEMPLATES
 app.get('/test-templates', (_req, res) => {
@@ -1433,11 +1572,7 @@ ${resumeText}
 
 Return only the role name, nothing else.`;
 
-      const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-      const location = process.env.VERTEX_LOCATION || 'us-central1';
-      const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-      const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-      const vertex = new VertexAI({ project, location, googleAuthOptions: { keyFile: credentialsPath } });
+      const vertex = createVertexAIInstance();
       const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
       const result = await model.generateContent({
@@ -1584,11 +1719,7 @@ ${resumeText}
 
 Return only the role name, nothing else.`;
 
-        const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-        const location = process.env.VERTEX_LOCATION || 'us-central1';
-        const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-        const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-        const vertex = new VertexAI({ project, location, googleAuthOptions: { keyFile: credentialsPath } });
+        const vertex = createVertexAIInstance();
         const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
         const result = await model.generateContent({
@@ -2071,11 +2202,7 @@ app.post('/analyze-prd', async (req, res) => {
     const prompt = `Resume:\n${resumeText}\n\nRetrieved Job Market Passages:\n${passagesStr}\n\nTask:\nFor the role ${role}:\n- List matched skills (found in resume).\n- List missing required skills.\n- Provide 2-3 concise recommendations.\nOutput ONLY JSON with shape:\n{\n  "role": "${role}",\n  "present_skills": [],\n  "missing_skills": [],\n  "recommendations": []\n}`;
 
     // Call Gemini
-    const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-    const location = process.env.VERTEX_LOCATION || 'us-central1';
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-    const vertex = new VertexAI({ project, location, googleAuthOptions: { keyFile: credentialsPath } });
+    const vertex = createVertexAIInstance();
     const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
     const result = await model.generateContent({
@@ -2183,6 +2310,39 @@ app.post('/generate-learning-roadmap', async (req, res) => {
     }
 
     console.log('Generating learning roadmap with Gemini + RAG...');
+    
+    // Check if AI features are available
+    if (!googleAuthReady) {
+      console.warn('⚠️ AI features not available, returning fallback roadmap');
+      return res.json({
+        roadmap: {
+          role: role,
+          stages: [
+            {
+              stage: "Critical Skills (1-2 months)",
+              skills: skillsMissing.slice(0, 3).map(skill => ({
+                skill: skill,
+                priority: "high",
+                timeline: "1-2 months",
+                resources: ["Online courses", "Practice projects", "Documentation"]
+              }))
+            },
+            {
+              stage: "Important Skills (3-6 months)", 
+              skills: skillsMissing.slice(3, 6).map(skill => ({
+                skill: skill,
+                priority: "medium",
+                timeline: "3-6 months",
+                resources: ["Advanced courses", "Real-world projects", "Mentorship"]
+              }))
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
     
     // Build comprehensive prompt for learning roadmap
     const roadmapPrompt = `You are an expert career advisor. Generate a comprehensive learning roadmap for a ${role} role.
@@ -2306,23 +2466,84 @@ Return ONLY valid JSON with this structure:
 }`;
 
     // Call Gemini for roadmap generation
-    const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-    const location = process.env.VERTEX_LOCATION || 'us-central1';
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-    const vertex = new VertexAI({ project, location, googleAuthOptions: { keyFile: credentialsPath } });
+    const vertex = createVertexAIInstance();
+    if (!vertex) {
+      console.warn('⚠️ AI authentication failed, returning fallback roadmap');
+      return res.json({
+        roadmap: {
+          role: role,
+          stages: [
+            {
+              stage: "Critical Skills (1-2 months)",
+              skills: skillsMissing.slice(0, 3).map(skill => ({
+                skill: skill,
+                priority: "high",
+                timeline: "1-2 months",
+                resources: ["Online courses", "Practice projects", "Documentation"]
+              }))
+            },
+            {
+              stage: "Important Skills (3-6 months)", 
+              skills: skillsMissing.slice(3, 6).map(skill => ({
+                skill: skill,
+                priority: "medium",
+                timeline: "3-6 months",
+                resources: ["Advanced courses", "Real-world projects", "Mentorship"]
+              }))
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
+    
     const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: roadmapPrompt }] }],
-      generationConfig: {
-        temperature: 0.1,  // Lower temperature for more consistent JSON
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-        topP: 0.8,
-        topK: 40
-      }
-    });
+    let result;
+    try {
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: roadmapPrompt }] }],
+        generationConfig: {
+          temperature: 0.1,  // Lower temperature for more consistent JSON
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+          topP: 0.8,
+          topK: 40
+        }
+      });
+    } catch (aiError) {
+      console.warn('⚠️ AI generation failed, returning fallback roadmap');
+      return res.json({
+        roadmap: {
+          role: role,
+          stages: [
+            {
+              stage: "Critical Skills (1-2 months)",
+              skills: skillsMissing.slice(0, 3).map(skill => ({
+                skill: skill,
+                priority: "high",
+                timeline: "1-2 months",
+                resources: ["Online courses", "Practice projects", "Documentation"]
+              }))
+            },
+            {
+              stage: "Important Skills (3-6 months)", 
+              skills: skillsMissing.slice(3, 6).map(skill => ({
+                skill: skill,
+                priority: "medium",
+                timeline: "3-6 months",
+                resources: ["Advanced courses", "Real-world projects", "Mentorship"]
+              }))
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
     
     const roadmapText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('Raw Gemini response (first 1000 chars):', roadmapText.substring(0, 1000));
@@ -2546,6 +2767,46 @@ app.post('/start-career-simulation', async (req, res) => {
 
     console.log('Starting career simulation with Gemini + RAG...');
     
+    // Check if AI features are available
+    if (!googleAuthReady) {
+      console.warn('⚠️ AI features not available, returning fallback simulation');
+      return res.json({
+        simulation: {
+          id: `sim_${Date.now()}`,
+          role: role,
+          scenarios: [
+            {
+              id: "scenario_1",
+              title: "Technical Interview Challenge",
+              description: "You're in a technical interview for a " + role + " position. The interviewer asks about your experience with " + skillsPresent[0] + ".",
+              choices: [
+                { id: "choice_1", text: "Explain your experience confidently", outcome: "positive" },
+                { id: "choice_2", text: "Admit you're still learning", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for clarification", outcome: "positive" }
+              ],
+              skills_tested: [skillsPresent[0] || "General skills"],
+              difficulty: "intermediate"
+            },
+            {
+              id: "scenario_2", 
+              title: "Project Planning Meeting",
+              description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
+              choices: [
+                { id: "choice_1", text: "Create detailed project plan", outcome: "positive" },
+                { id: "choice_2", text: "Delegate to team members", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for team input first", outcome: "positive" }
+              ],
+              skills_tested: ["Project Management", "Leadership"],
+              difficulty: "intermediate"
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
+    
     // Build comprehensive prompt for career simulation
     const simulationPrompt = `Create an interactive career simulation for a ${role} role based on the following profile:
 
@@ -2632,21 +2893,96 @@ Return ONLY valid JSON with this structure:
 }`;
 
     // Call Gemini for simulation generation
-    const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-    const location = process.env.VERTEX_LOCATION || 'us-central1';
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-    const vertex = new VertexAI({ project, location, googleAuthOptions: { keyFile: credentialsPath } });
+    const vertex = createVertexAIInstance();
+    if (!vertex) {
+      console.warn('⚠️ AI authentication failed, returning fallback simulation');
+      return res.json({
+        simulation: {
+          id: `sim_${Date.now()}`,
+          role: role,
+          scenarios: [
+            {
+              id: "scenario_1",
+              title: "Technical Interview Challenge",
+              description: "You're in a technical interview for a " + role + " position. The interviewer asks about your experience with " + skillsPresent[0] + ".",
+              choices: [
+                { id: "choice_1", text: "Explain your experience confidently", outcome: "positive" },
+                { id: "choice_2", text: "Admit you're still learning", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for clarification", outcome: "positive" }
+              ],
+              skills_tested: [skillsPresent[0] || "General skills"],
+              difficulty: "intermediate"
+            },
+            {
+              id: "scenario_2", 
+              title: "Project Planning Meeting",
+              description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
+              choices: [
+                { id: "choice_1", text: "Create detailed project plan", outcome: "positive" },
+                { id: "choice_2", text: "Delegate to team members", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for team input first", outcome: "positive" }
+              ],
+              skills_tested: ["Project Management", "Leadership"],
+              difficulty: "intermediate"
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
+    
     const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: simulationPrompt }] }],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json'
-      }
-    });
+    let result;
+    try {
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: simulationPrompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json'
+        }
+      });
+    } catch (aiError) {
+      console.warn('⚠️ AI generation failed, returning fallback simulation');
+      return res.json({
+        simulation: {
+          id: `sim_${Date.now()}`,
+          role: role,
+          scenarios: [
+            {
+              id: "scenario_1",
+              title: "Technical Interview Challenge",
+              description: "You're in a technical interview for a " + role + " position. The interviewer asks about your experience with " + skillsPresent[0] + ".",
+              choices: [
+                { id: "choice_1", text: "Explain your experience confidently", outcome: "positive" },
+                { id: "choice_2", text: "Admit you're still learning", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for clarification", outcome: "positive" }
+              ],
+              skills_tested: [skillsPresent[0] || "General skills"],
+              difficulty: "intermediate"
+            },
+            {
+              id: "scenario_2", 
+              title: "Project Planning Meeting",
+              description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
+              choices: [
+                { id: "choice_1", text: "Create detailed project plan", outcome: "positive" },
+                { id: "choice_2", text: "Delegate to team members", outcome: "neutral" },
+                { id: "choice_3", text: "Ask for team input first", outcome: "positive" }
+              ],
+              skills_tested: ["Project Management", "Leadership"],
+              difficulty: "intermediate"
+            }
+          ],
+          generated_at: new Date().toISOString(),
+          ai_generated: false,
+          fallback: true
+        }
+      });
+    }
     
     const simulationText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
