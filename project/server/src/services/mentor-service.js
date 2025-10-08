@@ -1,5 +1,6 @@
 import { VertexAI } from '@google-cloud/vertexai';
 import { RAGResumeAnalyzer } from './rag-service.js';
+import { enhancedRAGAnalyzer } from './enhanced-rag-service.js';
 import YouTubeService from './youtube-service.js';
 import { VectorStore } from '../../utils/vectorStore.js';
 import { getEmbedding } from '../../utils/embeddings.js';
@@ -37,6 +38,7 @@ export class MentorService {
     });
     
     this.ragAnalyzer = new RAGResumeAnalyzer();
+    this.enhancedRAG = enhancedRAGAnalyzer;
     this.vectorStore = new VectorStore();
     this.youtube = new YouTubeService();
     this.badgeRules = new Map();
@@ -1073,10 +1075,34 @@ Return only valid JSON.`;
         });
       }
       
-      // 4. Hybrid retrieval for additional context
-      const searchQuery = options.jobDescription || message;
-      const retrievedContext = await this.hybridRetrieval(searchQuery, userId, 5);
-      contextSnippets.push(...retrievedContext);
+      // 4. Enhanced RAG retrieval for additional context
+      try {
+        const resumeText = options.resumeText || '';
+        const jdText = options.jobDescription || '';
+        const role = (options.userProfile && options.userProfile.targetRole) || 'data-analyst';
+        const ragResult = await this.enhancedRAG.analyzeResumeWithEnhancedRAG(resumeText, jdText, role);
+        // Use retrieved passages from enhanced RAG as grounded context
+        if (Array.isArray(ragResult.retrieved_passages)) {
+          ragResult.retrieved_passages.forEach((p, idx) => {
+            contextSnippets.push({
+              docId: `rag:${idx + 1}`,
+              text: `${p.text}`,
+              metadata: { type: 'enhanced_rag', source: p.publisher, date: p.date }
+            });
+          });
+        }
+        // Also add summarized skills info for mentor grounding
+        contextSnippets.push({
+          docId: 'rag:summary',
+          text: `RAG summary\nSkills Present: ${(ragResult.skills_present || []).join(', ')}\nSkills Missing: ${(ragResult.skills_missing || []).join(', ')}`,
+          metadata: { type: 'rag_summary' }
+        });
+      } catch (ragErr) {
+        console.warn('Enhanced RAG context fetch failed, falling back to hybrid retrieval:', ragErr.message);
+        const searchQuery = options.jobDescription || message;
+        const retrievedContext = await this.hybridRetrieval(searchQuery, userId, 5);
+        contextSnippets.push(...retrievedContext);
+      }
       
       // 5. Generate structured response with enhanced context
       const userProfile = {

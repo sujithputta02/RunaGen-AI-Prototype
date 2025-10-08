@@ -3,7 +3,8 @@ import usetube from 'usetube';
 
 export class YouTubeService {
   constructor() {
-    this.apiKey = process.env.YOUTUBE_API_KEY;
+    // Always operate in non-API mode per user request
+    this.apiKey = null;
     this.baseUrl = 'https://www.googleapis.com/youtube/v3';
   }
 
@@ -285,7 +286,8 @@ export class YouTubeService {
 
   // Search for YouTube videos based on query
   async searchVideos(query, maxResults = 5) {
-    if (!this.apiKey) {
+    // Force non-API path
+    if (true) {
       console.warn('YouTube API key not configured, using alternative methods');
       // Try alternative methods in order of preference
       try {
@@ -324,40 +326,6 @@ export class YouTubeService {
       // Final fallback to mock data
       return this.getMockVideoResults(query);
     }
-
-    try {
-      const searchUrl = `${this.baseUrl}/search`;
-      const params = new URLSearchParams({
-        part: 'snippet',
-        q: query,
-        type: 'video',
-        maxResults: maxResults.toString(),
-        key: this.apiKey,
-        order: 'relevance'
-      });
-
-      const response = await fetch(`${searchUrl}?${params}`);
-      
-      if (!response.ok) {
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      return data.items.map(item => ({
-        videoId: item.id.videoId,
-        title: item.snippet.title,
-        description: item.snippet.description,
-        thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
-        channelTitle: item.snippet.channelTitle,
-        publishedAt: item.snippet.publishedAt,
-        url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-        duration: null // Would need additional API call to get duration
-      }));
-    } catch (error) {
-      console.error('YouTube API search error:', error);
-      return this.getMockVideoResults(query);
-    }
   }
 
   // Get video details including duration
@@ -377,7 +345,8 @@ export class YouTubeService {
       const response = await fetch(`${detailsUrl}?${params}`);
       
       if (!response.ok) {
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`);
+        console.warn(`YouTube API details not ok (${response.status}). Skipping details enrichment.`);
+        return [];
       }
 
       const data = await response.json();
@@ -504,7 +473,7 @@ export class YouTubeService {
       const detailedResults = await this.getVideoDetails(videoIds);
       
       // Merge search results with detailed information
-      return searchResults.map(searchResult => {
+      const merged = searchResults.map(searchResult => {
         const details = detailedResults.find(detail => detail.videoId === searchResult.videoId);
         return {
           ...searchResult,
@@ -512,8 +481,19 @@ export class YouTubeService {
           url: searchResult.url // Keep the URL from search results
         };
       });
+      // If details couldn't be fetched, return searchResults
+      return merged.length ? merged : searchResults;
     } catch (error) {
       console.error('Error in searchVideosWithDetails:', error);
+      // On error, try alternatives before mock
+      try {
+        const alt = await this.searchVideosAlternative(query, maxResults);
+        if (alt && alt.length) return alt;
+      } catch {}
+      try {
+        const web = await this.searchVideosWebScraping(query, maxResults);
+        if (web && web.length) return web;
+      } catch {}
       return this.getMockVideoResults(query);
     }
   }
@@ -542,8 +522,10 @@ export class YouTubeService {
                     console.log(`YouTubeService: Found ${searchResults.length} results for query: ${video.search_query}`);
                     if (searchResults.length > 0) {
                       const bestMatch = searchResults[0];
-                      video.url = bestMatch.url;
-                      video.videoId = bestMatch.videoId;
+                      // Ensure URL actually works; fallback to alternatives if needed
+                      const ensuredUrl = await this.ensureWorkingYouTubeUrl(video.search_query, bestMatch.url);
+                      video.url = ensuredUrl || bestMatch.url;
+                      video.videoId = this.extractVideoId(video.url) || bestMatch.videoId;
                       video.thumbnail = bestMatch.thumbnail;
                       video.duration = bestMatch.duration;
                       video.viewCount = bestMatch.viewCount;

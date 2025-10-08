@@ -66,8 +66,9 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onAnalysisComplete, onRoadm
       console.log('Server test response:', data);
       alert(`Server is running! Available roles: ${data.available_roles.join(', ')}`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Server test failed:', error);
-      alert('Server test failed: ' + error.message);
+      alert('Server test failed: ' + message);
     }
   };
 
@@ -87,8 +88,9 @@ Job Database Test Results:
       
       alert(message);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Job database test failed:', error);
-      alert('Job database test failed: ' + error.message);
+      alert('Job database test failed: ' + message);
     }
   };
 
@@ -110,8 +112,9 @@ YouTube Service Test Results:
       
       alert(message);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('YouTube service test failed:', error);
-      alert('YouTube service test failed: ' + error.message);
+      alert('YouTube service test failed: ' + message);
     }
   };
 
@@ -153,7 +156,8 @@ YouTube Service Test Results:
             }
           }
         } catch (error) {
-          console.log('Could not detect role from file, using default:', error.message);
+          const message = error instanceof Error ? error.message : String(error);
+          console.log('Could not detect role from file, using default:', message);
         }
       }
       
@@ -187,8 +191,9 @@ ${data.job_matches.map((job: any) =>
       
       alert(message);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Job matches test failed:', error);
-      alert('Job matches test failed: ' + error.message);
+      alert('Job matches test failed: ' + message);
     }
   };
 
@@ -229,8 +234,9 @@ ${data.first_500_chars}
       
       alert(message);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('PDF parsing test failed:', error);
-      alert('PDF parsing test failed: ' + error.message);
+      alert('PDF parsing test failed: ' + message);
     }
   };
 
@@ -251,6 +257,61 @@ ${data.first_500_chars}
       skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Git', 'AWS', 'Docker'],
       description: 'Build scalable web applications and systems'
     },
+    'frontend-developer': {
+      title: 'Frontend Developer',
+      skills: ['HTML', 'CSS', 'JavaScript', 'React', 'TypeScript', 'Accessibility'],
+      description: 'Build modern, accessible user interfaces'
+    },
+    'backend-developer': {
+      title: 'Backend Developer',
+      skills: ['Node.js', 'Express', 'Databases', 'APIs', 'Authentication', 'Caching'],
+      description: 'Design and build server-side logic and APIs'
+    },
+    'fullstack-developer': {
+      title: 'Full-Stack Developer',
+      skills: ['React', 'Node.js', 'TypeScript', 'SQL', 'Docker', 'CI/CD'],
+      description: 'Deliver end-to-end features across frontend and backend'
+    },
+    'mobile-developer': {
+      title: 'Mobile Developer',
+      skills: ['React Native', 'Swift/Kotlin', 'REST', 'Offline Storage', 'Testing'],
+      description: 'Create native and cross-platform mobile apps'
+    },
+    'data-scientist': {
+      title: 'Data Scientist',
+      skills: ['Python', 'Pandas', 'Machine Learning', 'Statistics', 'NLP', 'Deep Learning'],
+      description: 'Build predictive models and derive insights from data'
+    },
+    'machine-learning-engineer': {
+      title: 'Machine Learning Engineer',
+      skills: ['ML Pipelines', 'MLOps', 'TensorFlow/PyTorch', 'Feature Engineering', 'Cloud ML'],
+      description: 'Productionize and scale machine learning systems'
+    },
+    'ai-engineer': {
+      title: 'AI Engineer',
+      skills: ['LLMs', 'Prompt Engineering', 'Vector DBs', 'RAG', 'Python', 'APIs'],
+      description: 'Build AI-powered applications and agents'
+    },
+    'data-engineer': {
+      title: 'Data Engineer',
+      skills: ['Airflow', 'ETL', 'Spark', 'SQL', 'Data Warehousing', 'Cloud Data'],
+      description: 'Develop and maintain data pipelines and platforms'
+    },
+    'devops-engineer': {
+      title: 'DevOps Engineer',
+      skills: ['CI/CD', 'Kubernetes', 'Terraform', 'Observability', 'Linux', 'SRE'],
+      description: 'Automate deployments and ensure reliable operations'
+    },
+    'cloud-engineer': {
+      title: 'Cloud Engineer',
+      skills: ['AWS/Azure/GCP', 'Networking', 'Security', 'Serverless', 'IaC'],
+      description: 'Design and build scalable cloud infrastructure'
+    },
+    'qa-engineer': {
+      title: 'QA / Test Engineer',
+      skills: ['Test Automation', 'Playwright/Cypress', 'API Testing', 'Performance'],
+      description: 'Ensure product quality through automated and manual testing'
+    },
     'product-manager': {
       title: 'Product Manager',
       skills: ['Product Strategy', 'Analytics', 'User Research', 'Agile', 'SQL', 'Figma'],
@@ -260,7 +321,43 @@ ${data.first_500_chars}
       title: 'UX Designer',
       skills: ['Figma', 'User Research', 'Prototyping', 'Wireframing', 'Adobe Creative Suite', 'Usability Testing'],
       description: 'Design intuitive user experiences and interfaces'
+    },
+    'business-analyst': {
+      title: 'Business Analyst',
+      skills: ['Requirements', 'Stakeholders', 'Dashboards', 'SQL', 'Documentation'],
+      description: 'Bridge business goals with technical solutions'
+    },
+    'marketing-analyst': {
+      title: 'Marketing Analyst',
+      skills: ['SQL', 'Google Analytics', 'A/B Testing', 'Attribution', 'Excel'],
+      description: 'Analyze campaigns and customer data to drive growth'
+    },
+    'it-support': {
+      title: 'IT Support Specialist',
+      skills: ['Troubleshooting', 'Windows/Mac', 'Networking Basics', 'Ticketing', 'Scripting'],
+      description: 'Support end-users and maintain IT systems'
+    },
+    'cyber-security': {
+      title: 'Cyber Security',
+      skills: ['Network Security', 'SIEM', 'Incident Response', 'Penetration Testing', 'Threat Modeling', 'Python', 'Linux', 'Cloud Security', 'NIST', 'ISO 27001'],
+      description: 'Protect systems and data by preventing, detecting, and responding to threats'
     }
+  };
+
+  // Offline YouTube fallback: build watch/search links without API
+  const buildYouTubeFallbackVideos = (topic: string, limit: number = 2) => {
+    const queries = [
+      `${topic} for beginners`,
+      `${topic} tutorial`,
+      `${topic} crash course`,
+      `${topic} roadmap`
+    ].slice(0, limit);
+    return queries.map((q) => ({
+      title: q.replace(/\b\w/g, (m) => m.toUpperCase()),
+      topic,
+      search_query: q,
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+    }));
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -466,8 +563,9 @@ ${data.first_500_chars}
       setAnalysisId(data.id || null);
       onAnalysisComplete?.(analysisResult);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Analysis failed:', error);
-      alert('Analysis failed. Please try again.');
+      alert('Analysis failed. Please try again. (' + message + ')');
     } finally {
       setIsAnalyzing(false);
       setUploadProgress(0);
@@ -516,8 +614,9 @@ ${data.first_500_chars}
         alert('Failed to generate roadmap: ' + data.error);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Roadmap generation failed:', error);
-      alert('Failed to generate roadmap: ' + error.message);
+      alert('Failed to generate roadmap: ' + message);
     } finally {
       setIsGeneratingRoadmap(false);
     }
@@ -554,8 +653,9 @@ ${data.first_500_chars}
         alert('Failed to start simulation: ' + data.error);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Simulation start failed:', error);
-      alert('Failed to start simulation: ' + error.message);
+      alert('Failed to start simulation: ' + message);
     } finally {
       setIsStartingSimulation(false);
     }
@@ -568,6 +668,25 @@ ${data.first_500_chars}
       case 'low': return 'text-green-600 bg-green-100';
       default: return 'text-gray-600 bg-gray-100';
     }
+  };
+
+  // Generate fallback recommendations when backend doesn't provide any
+  const generateFallbackRecommendations = (a: ResumeAnalysis): string[] => {
+    if (!a) return [];
+    const topGaps = (a.skillsGap || []).slice(0, 3).map(g => g.skill);
+    const topJob = (a.jobMatches || [])[0];
+    const recs: string[] = [];
+    if (topGaps.length > 0) {
+      recs.push(`Focus on closing gaps in ${topGaps.join(', ')} over the next 4-8 weeks.`);
+      recs.push(`Take one hands-on project for each gap skill to build portfolio proof.`);
+    }
+    if (topJob) {
+      recs.push(`Target roles like "${topJob.title}" at companies similar to ${topJob.company}.`);
+    }
+    if (a.skillsFound && a.skillsFound.length > 0) {
+      recs.push(`Highlight strengths: ${a.skillsFound.slice(0, 3).join(', ')} in the top third of your resume.`);
+    }
+    return recs.length > 0 ? recs : ['Re-run analysis after uploading a recent resume to receive tailored tips.'];
   };
 
   return (
@@ -876,14 +995,21 @@ ${data.first_500_chars}
               <Lightbulb className="h-6 w-6 mr-2 text-yellow-600" />
               AI Recommendations
             </h3>
-            <div className="space-y-3">
-              {analysis.recommendations.map((rec, index) => (
-                <div key={index} className="flex items-start space-x-3 p-3 bg-yellow-50/80 backdrop-blur-sm rounded-xl border border-yellow-200/60 shadow-lg">
-                  <Zap className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-gray-800">{rec}</p>
+            {(() => {
+              const toShow = (analysis.recommendations && analysis.recommendations.length > 0)
+                ? analysis.recommendations
+                : generateFallbackRecommendations(analysis);
+              return (
+                <div className="space-y-3">
+                  {toShow.map((rec, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-yellow-50/80 backdrop-blur-sm rounded-xl border border-yellow-200/60 shadow-lg">
+                      <Zap className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-gray-800">{rec}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
 
           {/* Action Buttons */}
@@ -962,19 +1088,24 @@ ${data.first_500_chars}
                     <p className="text-sm text-gray-600 mb-2">Timeline: {skill.timeline}</p>
                     
                     {/* YouTube Videos */}
-                    {skill.youtube_videos && skill.youtube_videos.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex items-center mb-2">
-                          <Youtube className="h-4 w-4 text-red-600 mr-1" />
-                          <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                    {(() => {
+                      const videos = (skill.youtube_videos && skill.youtube_videos.length > 0)
+                        ? skill.youtube_videos.slice(0, 2)
+                        : buildYouTubeFallbackVideos(skill.skill, 2);
+                      return (
+                        <div className="mb-3">
+                          <div className="flex items-center mb-2">
+                            <Youtube className="h-4 w-4 text-red-600 mr-1" />
+                            <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                          </div>
+                          <div className="space-y-2">
+                            {videos.map((video: any, i: number) => (
+                              <YouTubeVideoCard key={i} video={video} compact={true} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {skill.youtube_videos.slice(0, 2).map((video: any, i: number) => (
-                            <YouTubeVideoCard key={i} video={video} compact={true} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Exam Preparation */}
                     {skill.exam_preparation && skill.exam_preparation.certifications && skill.exam_preparation.certifications.length > 0 && (
@@ -1029,19 +1160,24 @@ ${data.first_500_chars}
                     <p className="text-sm text-gray-600 mb-2">Timeline: {skill.timeline}</p>
                     
                     {/* YouTube Videos */}
-                    {skill.youtube_videos && skill.youtube_videos.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex items-center mb-2">
-                          <Youtube className="h-4 w-4 text-yellow-600 mr-1" />
-                          <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                    {(() => {
+                      const videos = (skill.youtube_videos && skill.youtube_videos.length > 0)
+                        ? skill.youtube_videos.slice(0, 2)
+                        : buildYouTubeFallbackVideos(skill.skill, 2);
+                      return (
+                        <div className="mb-3">
+                          <div className="flex items-center mb-2">
+                            <Youtube className="h-4 w-4 text-yellow-600 mr-1" />
+                            <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                          </div>
+                          <div className="space-y-2">
+                            {videos.map((video: any, i: number) => (
+                              <YouTubeVideoCard key={i} video={video} compact={true} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {skill.youtube_videos.slice(0, 2).map((video: any, i: number) => (
-                            <YouTubeVideoCard key={i} video={video} compact={true} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Exam Preparation */}
                     {skill.exam_preparation && skill.exam_preparation.certifications && skill.exam_preparation.certifications.length > 0 && (
@@ -1082,19 +1218,24 @@ ${data.first_500_chars}
                     <p className="text-sm text-gray-600 mb-2">Timeline: {skill.timeline}</p>
                     
                     {/* YouTube Videos */}
-                    {skill.youtube_videos && skill.youtube_videos.length > 0 && (
-                      <div className="mb-3">
-                        <div className="flex items-center mb-2">
-                          <Youtube className="h-4 w-4 text-blue-600 mr-1" />
-                          <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                    {(() => {
+                      const videos = (skill.youtube_videos && skill.youtube_videos.length > 0)
+                        ? skill.youtube_videos.slice(0, 2)
+                        : buildYouTubeFallbackVideos(skill.skill, 2);
+                      return (
+                        <div className="mb-3">
+                          <div className="flex items-center mb-2">
+                            <Youtube className="h-4 w-4 text-blue-600 mr-1" />
+                            <p className="text-sm font-medium text-gray-700">Learning Videos</p>
+                          </div>
+                          <div className="space-y-2">
+                            {videos.map((video: any, i: number) => (
+                              <YouTubeVideoCard key={i} video={video} compact={true} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          {skill.youtube_videos.slice(0, 2).map((video: any, i: number) => (
-                            <YouTubeVideoCard key={i} video={video} compact={true} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Exam Preparation */}
                     {skill.exam_preparation && skill.exam_preparation.certifications && skill.exam_preparation.certifications.length > 0 && (

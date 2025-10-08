@@ -13,18 +13,26 @@ export class ResumeOptimizer {
     this.model = process.env.VERTEX_MODEL || 'gemini-2.5-flash';
     
     if (!this.project) {
-      throw new Error('Vertex project not set. Set VERTEX_PROJECT_ID or GOOGLE_CLOUD_PROJECT');
+      console.warn('Resume Optimizer: Vertex project not set. Using fallback mode.');
+      this.isConfigured = false;
+      return;
     }
 
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
-    const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
+    try {
+      const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './new/career-companion-472510-c0aa769face2.json';
+      const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
 
-    this.vertexAI = new VertexAI({ 
-      project: this.project, 
-      location: this.location,
-      googleAuthOptions: { keyFile: credentialsPath }
-    });
-    this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+      this.vertexAI = new VertexAI({ 
+        project: this.project, 
+        location: this.location,
+        googleAuthOptions: { keyFile: credentialsPath }
+      });
+      this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+      this.isConfigured = true;
+    } catch (error) {
+      console.warn('Resume Optimizer: Failed to initialize Vertex AI. Using fallback mode:', error.message);
+      this.isConfigured = false;
+    }
   }
 
   // 🎯 HACKATHON FEATURE: AI Resume Optimization

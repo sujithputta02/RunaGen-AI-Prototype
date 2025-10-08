@@ -31,12 +31,13 @@ interface OptimizationResult {
 
 interface ATSAnalysis {
   ats_score: number;
-  score_breakdown: {
+  score_breakdown?: {
     keyword_match: number;
     formatting: number;
     section_structure: number;
     readability: number;
   };
+  breakdown?: Record<string, number>;
   keyword_analysis: {
     matched_keywords: string[];
     missing_keywords: string[];
@@ -46,6 +47,17 @@ interface ATSAnalysis {
   formatting_issues: string[];
   improvement_suggestions: string[];
   pass_probability: number;
+  semantic_analysis?: {
+    similarity_score?: number;
+    missing_semantic_concepts?: string[];
+  };
+  experience_analysis?: {
+    role_relevance?: number;
+    industry_alignment?: number;
+    achievement_impact?: number;
+    years_match?: boolean;
+  };
+  feedback?: string;
 }
 
 interface CoverLetterResult {
@@ -90,8 +102,23 @@ const ResumeOptimizer: React.FC<ResumeOptimizerProps> = ({
   const roles = [
     { value: 'software-engineer', label: 'Software Engineer' },
     { value: 'data-analyst', label: 'Data Analyst' },
+    { value: 'data-scientist', label: 'Data Scientist' },
+    { value: 'machine-learning-engineer', label: 'Machine Learning Engineer' },
+    { value: 'ai-engineer', label: 'AI Engineer' },
+    { value: 'frontend-developer', label: 'Frontend Developer' },
+    { value: 'backend-developer', label: 'Backend Developer' },
+    { value: 'fullstack-developer', label: 'Full-Stack Developer' },
+    { value: 'mobile-developer', label: 'Mobile Developer' },
+    { value: 'devops-engineer', label: 'DevOps Engineer' },
+    { value: 'cloud-engineer', label: 'Cloud Engineer' },
+    { value: 'data-engineer', label: 'Data Engineer' },
+    { value: 'qa-engineer', label: 'QA / Test Engineer' },
     { value: 'product-manager', label: 'Product Manager' },
     { value: 'ux-designer', label: 'UX Designer' },
+    { value: 'cyber-security', label: 'Cyber Security' },
+    { value: 'business-analyst', label: 'Business Analyst' },
+    { value: 'marketing-analyst', label: 'Marketing Analyst' },
+    { value: 'it-support', label: 'IT Support' },
   ];
 
   // Fetch supported formats on component mount

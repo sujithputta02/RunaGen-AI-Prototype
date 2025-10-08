@@ -4,6 +4,7 @@ import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { VectorStore } from '../../utils/vectorStore.js';
 
 // Enhanced RAG service with vector search and external sources
 export class EnhancedRAGAnalyzer {
@@ -13,22 +14,30 @@ export class EnhancedRAGAnalyzer {
     this.model = process.env.VERTEX_MODEL || 'gemini-2.5-flash';
     
     if (!this.project) {
-      throw new Error('Vertex project not set. Set VERTEX_PROJECT_ID or GOOGLE_CLOUD_PROJECT');
+      console.warn('Enhanced RAG: Vertex project not set. Using fallback mode.');
+      this.isConfigured = false;
+      return;
     }
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
+    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './new/career-companion-472510-c0aa769face2.json';
     const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../../', envCred);
 
-    this.vertexAI = new VertexAI({ 
-      project: this.project, 
-      location: this.location,
-      googleAuthOptions: { keyFile: credentialsPath }
-    });
-    this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+    try {
+      this.vertexAI = new VertexAI({ 
+        project: this.project, 
+        location: this.location,
+        googleAuthOptions: { keyFile: credentialsPath }
+      });
+      this.generativeModel = this.vertexAI.getGenerativeModel({ model: this.model });
+      this.isConfigured = true;
+    } catch (error) {
+      console.warn('Enhanced RAG: Failed to initialize Vertex AI. Using fallback mode:', error.message);
+      this.isConfigured = false;
+    }
     // Initialize embeddings model only if supported by current SDK version
-    if (typeof this.vertexAI.getTextEmbeddingModel === 'function') {
+    if (this.isConfigured && typeof this.vertexAI.getTextEmbeddingModel === 'function') {
       this.textEmbeddingModel = this.vertexAI.getTextEmbeddingModel({ model: 'text-embedding-005' });
     } else {
       this.textEmbeddingModel = null;
@@ -37,6 +46,9 @@ export class EnhancedRAGAnalyzer {
     // In-memory vector store for demo (in production, use Pinecone, Weaviate, etc.)
     this.vectorStore = new Map();
     this.externalSources = this.initializeExternalSources();
+    // Build a lightweight persistent in-memory index from industry standards
+    this.globalIndex = new VectorStore(128);
+    this.buildPersistentIndexFromStandards();
   }
 
   // Initialize external data sources
@@ -87,9 +99,33 @@ export class EnhancedRAGAnalyzer {
           'Accessibility and inclusive design',
           'Design thinking and problem-solving',
           'Collaboration with developers and stakeholders'
+        ],
+        'cyber-security': [
+          'Security Information and Event Management (SIEM) monitoring and alert triage',
+          'Incident response (IR) procedures and runbooks',
+          'Threat hunting and threat intelligence analysis',
+          'Vulnerability management and penetration testing (OWASP, Nmap, Burp Suite)',
+          'Endpoint detection and response (EDR/XDR) and log analysis',
+          'Cloud security best practices (IAM, least privilege, encryption, CIS/NIST/ISO 27001)'
         ]
       }
     };
+  }
+
+  // Build a persistent in-memory index from known industry standards
+  async buildPersistentIndexFromStandards() {
+    try {
+      const entries = Object.entries(this.externalSources.industryStandards || {});
+      for (const [role, standards] of entries) {
+        for (const text of standards) {
+          const vec = await this.generateEmbedding(text);
+          await this.globalIndex.add({ role, source: 'industry_standards', text }, vec);
+        }
+      }
+      await this.globalIndex.build();
+    } catch (err) {
+      console.warn('Failed to build persistent standards index:', err.message);
+    }
   }
 
   // Chunk resume text into smaller, analyzable pieces
@@ -273,6 +309,25 @@ export class EnhancedRAGAnalyzer {
         relevance: 0.9,
         type: 'requirement'
       })));
+
+      // Query persistent standards index for semantically similar items
+      try {
+        const qVec = await this.generateEmbedding(query);
+        const topFromIndex = await this.globalIndex.topK(qVec, 6);
+        topFromIndex.forEach(({ item, score }) => {
+          // Filter by role if provided
+          if (!role || item.role === role) {
+            results.push({
+              source: 'standards_index',
+              content: item.text,
+              relevance: Math.max(0.5, Math.min(0.99, score)),
+              type: 'requirement'
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('Standards index query failed:', e.message);
+      }
 
       // Search job boards (simulated - in production, use real APIs)
       const jobBoardResults = await this.searchJobBoards(query, role);
@@ -502,11 +557,23 @@ Return only valid JSON.`;
         (r.missing_required_skills || []).forEach(obj => { if (obj && obj.skill) missingSkills.add(obj.skill); });
         (r.missing_preferred_skills || []).forEach(s => missingSkills.add(s));
       });
+
+      // Fallback: also extract skills directly from resume text and merge
+      const resumeExtractedSkills = this.extractSkillsFromText(resumeText);
+      resumeExtractedSkills.forEach(s => matchedSkills.add(s));
+      
+      // If we still have no missing skills, infer from role requirements
+      if (missingSkills.size === 0) {
+        this.generateSkillGaps(role, Array.from(matchedSkills)).forEach(s => missingSkills.add(s));
+      }
+      
+      const skillsPresentArray = Array.from(matchedSkills);
+      const skillsMissingArray = Array.from(missingSkills);
       
       return {
         roles: rolesJson.roles || [],
-        skills_present: Array.from(matchedSkills),
-        skills_missing: Array.from(missingSkills),
+        skills_present: skillsPresentArray,
+        skills_missing: skillsMissingArray,
         recommendations: [],
         match_score: Math.min(100, Math.round(((rolesJson.roles || []).reduce((acc, r) => acc + (r.confidence || 0), 0) / ((rolesJson.roles || []).length || 1)))),
         external_sources_used: externalSources.length,

@@ -18,6 +18,7 @@ import MentorService from './services/mentor-service.js';
 import SimulationService from './services/simulation-service.js';
 import TelemetryService from './services/telemetry-service.js';
 import { YouTubeService } from './services/youtube-service.js';
+import FallbackAIService from './services/fallback-ai-service.js';
 import Analysis from './models/Analysis.js';
 import Roadmap from './models/Roadmap.js';
 import Simulation from './models/Simulation.js';
@@ -36,7 +37,7 @@ function setupGoogleAuth() {
   try {
     // Set default environment variables if not already set
     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(__dirname, '../career-companion-472510-7dd10b4d4dcb.json');
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(__dirname, '../new/career-companion-472510-c0aa769face2.json');
     }
     if (!process.env.VERTEX_PROJECT_ID) {
       process.env.VERTEX_PROJECT_ID = 'career-companion-472510';
@@ -68,7 +69,35 @@ function setupGoogleAuth() {
 const googleAuthReady = setupGoogleAuth();
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+
+// Robust CORS configuration
+const rawCorsOrigin = process.env.CORS_ORIGIN;
+const defaultFrontendOrigin = 'http://localhost:5173';
+const parsedOrigins = (rawCorsOrigin && rawCorsOrigin.trim().length > 0)
+  ? rawCorsOrigin.split(',').map(o => o.trim())
+  : [defaultFrontendOrigin];
+
+const allowAll = parsedOrigins.length === 1 && (parsedOrigins[0].toLowerCase() === 'true' || parsedOrigins[0] === '*');
+
+// Build a single CORS options object used for both middleware and preflight
+const corsOptions = {
+  origin: function(origin, callback) {
+    // Allow non-browser requests (no origin) and same-origin
+    if (!origin) return callback(null, true);
+    if (allowAll) return callback(null, origin);
+    if (parsedOrigins.includes(origin)) return callback(null, origin);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','x-user-id'],
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle preflight with the same options
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Helper function to create VertexAI instance with error handling
@@ -81,7 +110,7 @@ function createVertexAIInstance() {
   try {
     const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     const location = process.env.VERTEX_LOCATION || 'us-central1';
-    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
+    const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './new/career-companion-472510-c0aa769face2.json';
     const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
     
     // Try with explicit keyFile first
@@ -111,7 +140,7 @@ function createVertexAIInstance() {
 }
 
 // Initialize services (conditionally to avoid startup errors)
-let mentorService, simulationService, telemetryService, youtubeService;
+let mentorService, simulationService, telemetryService, youtubeService, fallbackAIService;
 
 try {
   if (googleAuthReady) {
@@ -119,10 +148,15 @@ try {
     simulationService = new SimulationService();
     telemetryService = new TelemetryService();
     youtubeService = new YouTubeService();
+    fallbackAIService = new FallbackAIService();
     console.log('AI Mentor services initialized successfully');
   } else {
     console.warn('AI Mentor services disabled due to authentication issues');
   }
+  
+  // Always initialize fallback AI service
+  fallbackAIService = new FallbackAIService();
+  console.log('Fallback AI service initialized');
 } catch (error) {
   console.warn('AI Mentor services initialization failed:', error.message);
   console.warn('Mentor features will be disabled');
@@ -193,8 +227,23 @@ const JD_TEMPLATES = {
   'auto-detect': `Auto-detect the most suitable role based on resume content and skills.`,
   'data-analyst': `We seek a Data Analyst with strong SQL, Python, statistics, and BI tools like Tableau/Power BI. Responsibilities include data cleaning, analysis, dashboards, and stakeholder communication.`,
   'software-engineer': `We seek a Software Engineer with JavaScript/TypeScript, React, Node.js, REST, testing, CI/CD, and cloud basics.`,
+  'frontend-developer': `We seek a Frontend Developer skilled in HTML, CSS, JavaScript, React, TypeScript, accessibility, testing, and performance optimization to build modern user interfaces.`,
+  'backend-developer': `We seek a Backend Developer experienced with Node.js/Express, REST/GraphQL APIs, databases (SQL/NoSQL), authentication/authorization, caching, and scalability.`,
+  'fullstack-developer': `We seek a Full-Stack Developer proficient in React, Node.js, TypeScript, databases, Docker, and CI/CD to deliver end-to-end product features.`,
+  'mobile-developer': `We seek a Mobile Developer with React Native or native (Swift/Kotlin), API integration, offline storage, and testing to create high-quality mobile apps.`,
+  'data-scientist': `We seek a Data Scientist skilled in Python, Pandas, machine learning, statistics, model evaluation, and storytelling to build predictive models and insights.`,
+  'machine-learning-engineer': `We seek an ML Engineer with TensorFlow/PyTorch, MLOps, feature engineering, data pipelines, and cloud ML services to productionize models.`,
+  'ai-engineer': `We seek an AI Engineer with LLMs, prompt engineering, vector databases, RAG, Python, and API integration to build AI-powered applications.`,
+  'data-engineer': `We seek a Data Engineer with ETL/ELT, Airflow, Spark, SQL, warehousing (BigQuery/Redshift/Snowflake), and data modeling to build robust pipelines.`,
+  'devops-engineer': `We seek a DevOps Engineer with CI/CD, Kubernetes, Terraform, observability, Linux, and SRE practices to automate deployments and improve reliability.`,
+  'cloud-engineer': `We seek a Cloud Engineer with AWS/Azure/GCP, networking, security, serverless, IaC, and cost optimization to design scalable cloud infrastructure.`,
+  'qa-engineer': `We seek a QA/Test Engineer with test automation (Playwright/Cypress), API testing, performance testing, and quality strategy to ensure product excellence.`,
   'product-manager': `We seek a Product Manager with user research, analytics, product strategy, roadmapping, and cross-functional leadership.`,
-  'ux-designer': `We seek a UX Designer skilled in Figma, prototyping, user research, wireframing, and usability testing.`
+  'ux-designer': `We seek a UX Designer skilled in Figma, prototyping, user research, wireframing, and usability testing.`,
+  'business-analyst': `We seek a Business Analyst experienced in requirements gathering, stakeholder management, process mapping, dashboards, and documentation.`,
+  'marketing-analyst': `We seek a Marketing Analyst with SQL, analytics platforms, A/B testing, attribution, and dashboarding to drive growth insights.`,
+  'it-support': `We seek an IT Support Specialist with troubleshooting, Windows/Mac administration, networking basics, scripting, and ticketing tools.`,
+  'cyber-security': `We seek a Cyber Security professional with network security, SIEM, incident response, penetration testing, threat modeling, and cloud security best practices (NIST/ISO 27001).`
 };
 
 // Job database with real job postings - Indian and International markets
@@ -467,6 +516,70 @@ const JOB_DATABASE = {
       salary: '$130,000 - $170,000'
     }
   ],
+  'cyber-security': [
+    // Indian Job Market
+    {
+      title: 'SOC Analyst',
+      company: 'Tata Consultancy Services (TCS)',
+      location: 'Mumbai, India',
+      matchPercentage: 90,
+      requiredSkills: ['SIEM', 'Incident Response', 'Linux', 'Networking', 'Threat Intelligence'],
+      preferredSkills: ['Splunk', 'QRadar', 'Elastic Security', 'EDR', 'Scripting'],
+      description: 'Monitor security events, investigate incidents, and respond per runbooks in a 24x7 SOC.',
+      salary: '₹6,00,000 - ₹10,00,000'
+    },
+    {
+      title: 'Security Engineer',
+      company: 'Infosys',
+      location: 'Bangalore, India',
+      matchPercentage: 85,
+      requiredSkills: ['Firewalls', 'WAF', 'IAM', 'Vulnerability Management', 'Cloud Security'],
+      preferredSkills: ['AWS Security', 'Terraform', 'Zero Trust', 'EDR/XDR'],
+      description: 'Harden infrastructure, manage identity, and implement cloud and network security controls.',
+      salary: '₹10,00,000 - ₹16,00,000'
+    },
+    {
+      title: 'Threat Hunter',
+      company: 'Wipro',
+      location: 'Hyderabad, India',
+      matchPercentage: 80,
+      requiredSkills: ['Threat Hunting', 'DFIR', 'Scripting', 'SIEM', 'MITRE ATT&CK'],
+      preferredSkills: ['Python', 'YARA', 'Sigma', 'Kusto (KQL)'],
+      description: 'Proactively hunt for threats, build detections, and improve organizational defenses.',
+      salary: '₹12,00,000 - ₹18,00,000'
+    },
+    // International Job Market
+    {
+      title: 'Security Analyst',
+      company: 'CrowdStrike',
+      location: 'Austin, TX, USA',
+      matchPercentage: 88,
+      requiredSkills: ['EDR', 'Incident Response', 'Threat Intelligence', 'Linux', 'Windows'],
+      preferredSkills: ['CrowdStrike Falcon', 'Scripting', 'Forensics'],
+      description: 'Investigate endpoint alerts, perform triage, and support incident response.',
+      salary: '$95,000 - $130,000'
+    },
+    {
+      title: 'Cloud Security Engineer',
+      company: 'Amazon (AWS)',
+      location: 'Seattle, WA, USA',
+      matchPercentage: 90,
+      requiredSkills: ['AWS', 'IAM', 'Networking', 'Encryption', 'Automation'],
+      preferredSkills: ['Terraform', 'GuardDuty', 'Security Hub', 'KMS'],
+      description: 'Design and implement secure cloud architectures with least-privilege and monitoring.',
+      salary: '$140,000 - $190,000'
+    },
+    {
+      title: 'Penetration Tester',
+      company: 'NCC Group',
+      location: 'London, UK',
+      matchPercentage: 84,
+      requiredSkills: ['Pentesting', 'OWASP', 'Nmap', 'Burp Suite', 'Reporting'],
+      preferredSkills: ['OSCP', 'Scripting', 'Red Team'],
+      description: 'Conduct application and network penetration tests and document findings with fixes.',
+      salary: '£55,000 - £80,000'
+    }
+  ],
   'product-manager': [
     // Indian Job Market
     {
@@ -711,11 +824,21 @@ app.post('/optimize-resume', async (req, res) => {
       });
     }
     
-    const optimization = await resumeOptimizer.optimizeResume(
-      resumeText, 
-      targetRole, 
-      jobDescriptions
-    );
+    let optimization;
+    try {
+      optimization = await resumeOptimizer.optimizeResume(
+        resumeText, 
+        targetRole, 
+        jobDescriptions
+      );
+    } catch (error) {
+      console.warn('Resume optimizer failed, using fallback:', error.message);
+      optimization = await fallbackAIService.generateResumeOptimization(
+        resumeText, 
+        targetRole, 
+        jobDescriptions
+      );
+    }
     
     res.json({
       success: true,
@@ -978,11 +1101,21 @@ app.post('/predict-career-trajectory', async (req, res) => {
       });
     }
     
-    const trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
-      resumeData, 
-      targetRole, 
-      timeframe
-    );
+    let trajectory;
+    try {
+      trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
+        resumeData, 
+        targetRole, 
+        timeframe
+      );
+    } catch (error) {
+      console.warn('Career trajectory predictor failed, using fallback:', error.message);
+      trajectory = await fallbackAIService.generateCareerTrajectory(
+        resumeData, 
+        targetRole, 
+        timeframe
+      );
+    }
     
     res.json({
       success: true,
@@ -1134,31 +1267,37 @@ app.post('/mentor', async (req, res) => {
       });
     }
     
-    // Check if mentor service is available
-    if (!mentorService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Mentor service unavailable',
-        reply_text: "I'm currently unavailable. Please try again later or contact support.",
-        bullets: ["Service is temporarily down", "Try again in a few minutes", "Contact support if the issue persists"],
-        confidence: 0,
-        sources: [],
-        actions: [],
-        badges: []
-      });
-    }
+    let response;
     
-    // Process mentor request
-    const response = await mentorService.processMentorRequest(
-      userId,
-      sessionId,
-      message,
-      {
-        resumeText,
-        jobDescription,
-        userProfile
+    // Try mentor service first, fallback to AI service if unavailable
+    if (mentorService) {
+      try {
+        response = await mentorService.processMentorRequest(
+          userId,
+          sessionId,
+          message,
+          {
+            resumeText,
+            jobDescription,
+            userProfile
+          }
+        );
+      } catch (error) {
+        console.warn('Mentor service failed, using fallback:', error.message);
+        response = await fallbackAIService.generateMentorResponse(
+          message,
+          [resumeText, jobDescription].filter(Boolean),
+          'general'
+        );
       }
-    );
+    } else {
+      // Use fallback AI service
+      response = await fallbackAIService.generateMentorResponse(
+        message,
+        [resumeText, jobDescription].filter(Boolean),
+        'general'
+      );
+    }
     
     // Track telemetry if available
     if (telemetryService) {
@@ -1712,7 +1851,9 @@ app.post('/upload_resume', upload.single('file'), async (req, res) => {
       try {
         // Use Gemini for intelligent role detection
         console.log('Using Gemini for intelligent role detection...');
-        const roleDetectionPrompt = `Analyze this resume and determine the most appropriate job role. Return ONLY the role name from these options: software-engineer, data-analyst, product-manager, ux-designer.
+        const allowedRoles = Object.keys(JD_TEMPLATES).filter(r => r !== 'auto-detect');
+        const optionsList = allowedRoles.join(', ');
+        const roleDetectionPrompt = `Analyze this resume and determine the most appropriate job role. Return ONLY the role name from these options: ${optionsList}.
 
 Resume:
 ${resumeText}
@@ -1727,9 +1868,13 @@ Return only the role name, nothing else.`;
           generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
         });
         
-        const detectedRole = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-        finalTargetRole = ['software-engineer', 'data-analyst', 'product-manager', 'ux-designer'].includes(detectedRole) 
-          ? detectedRole 
+        let detectedRole = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
+        // Normalize common variations (spaces/underscores -> hyphens)
+        if (detectedRole) {
+          detectedRole = detectedRole.replace(/\s+|_/g, '-');
+        }
+        finalTargetRole = allowedRoles.includes(detectedRole)
+          ? detectedRole
           : await detectRoleFromResume(resumeText); // Fallback to keyword matching
         console.log(`Gemini auto-detected role: ${finalTargetRole}`);
       } catch (error) {
@@ -1746,25 +1891,31 @@ Return only the role name, nothing else.`;
     let analysis;
     
     try {
-      // Use Basic RAG with Gemini for skill extraction and analysis
-      console.log('Using Basic RAG with Gemini for skill extraction and analysis...');
-      const ragAnalysis = await ragAnalyzer.analyzeResumeWithRAG(resumeText, jdText, finalTargetRole);
-      console.log('Basic RAG analysis completed successfully');
-      
-      // Add job matches to the RAG analysis result
-      console.log('RAG Analysis result:', JSON.stringify(ragAnalysis, null, 2));
-      const skillsForMatching = ragAnalysis.skills_present || [];
-      console.log('Skills for job matching:', skillsForMatching);
+      // Prefer Enhanced RAG with external sources and retrieval
+      console.log('Using Enhanced RAG for analysis...');
+      const enhanced = await enhancedRAGAnalyzer.analyzeResumeWithEnhancedRAG(resumeText, jdText, finalTargetRole);
+      console.log('Enhanced RAG analysis completed successfully');
+      const skillsForMatching = enhanced.skills_present || [];
       const jobMatches = findJobMatches(finalTargetRole, skillsForMatching);
-      console.log('Job matches found:', jobMatches.length);
       analysis = {
-        ...ragAnalysis,
+        ...enhanced,
         job_matches: jobMatches
       };
-    } catch (error) {
-      console.log('Basic RAG failed, falling back to intelligent skill extraction:', error.message);
-      // Fallback to intelligent skill extraction if RAG fails
-      analysis = await analyzeResumeIntelligently(resumeText, jdText, finalTargetRole);
+    } catch (enhancedErr) {
+      console.warn('Enhanced RAG failed, trying Basic RAG:', enhancedErr.message);
+      try {
+        console.log('Using Basic RAG with Gemini as fallback...');
+        const ragAnalysis = await ragAnalyzer.analyzeResumeWithRAG(resumeText, jdText, finalTargetRole);
+        const skillsForMatching = ragAnalysis.skills_present || [];
+        const jobMatches = findJobMatches(finalTargetRole, skillsForMatching);
+        analysis = {
+          ...ragAnalysis,
+          job_matches: jobMatches
+        };
+      } catch (basicErr) {
+        console.warn('Basic RAG failed, falling back to intelligent extraction:', basicErr.message);
+        analysis = await analyzeResumeIntelligently(resumeText, jdText, finalTargetRole);
+      }
     }
 
     // Persist
@@ -2548,56 +2699,39 @@ Return ONLY valid JSON with this structure:
     const roadmapText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('Raw Gemini response (first 1000 chars):', roadmapText.substring(0, 1000));
     
-    // Parse JSON response with robust error handling
+    // Parse JSON response with robust extraction of the largest balanced JSON block
     const safeParse = (text) => {
       try {
-        // First try to parse as-is
         return JSON.parse(text);
       } catch (e) {
         console.error('JSON parse error:', e);
-        console.log('Problematic JSON text (first 500 chars):', text.substring(0, 500));
-        
+        console.log('Problematic JSON text (first 500 chars):', (text || '').substring(0, 500));
         try {
-          // Try to extract and clean JSON from the text
-          let cleanedText = text.trim();
-          
-          // Find the first complete JSON object
-          const firstBrace = cleanedText.indexOf('{');
-          if (firstBrace === -1) return null;
-          
-          // Find the matching closing brace
+          let cleaned = (text || '').trim();
+          cleaned = cleaned.replace(/```json|```/g, '');
+          const first = cleaned.indexOf('{');
+          if (first === -1) return null;
           let braceCount = 0;
-          let lastBrace = -1;
-          for (let i = firstBrace; i < cleanedText.length; i++) {
-            if (cleanedText[i] === '{') braceCount++;
-            if (cleanedText[i] === '}') braceCount--;
-            if (braceCount === 0) {
-              lastBrace = i;
-              break;
-            }
+          let end = -1;
+          for (let i = first; i < cleaned.length; i++) {
+            const ch = cleaned[i];
+            if (ch === '{') braceCount++;
+            else if (ch === '}') braceCount--;
+            if (braceCount === 0) end = i; // keep last balanced position
           }
-          
-          if (lastBrace === -1) return null;
-          
-          cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
-          
-          // Try to fix common JSON issues
-          cleanedText = cleanedText
-            .replace(/,\s*}/g, '}')  // Remove trailing commas before }
-            .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
-            .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Add quotes around unquoted keys
-            .replace(/:\s*([^",{\[\s][^,}\]]*?)(\s*[,}])/g, ': "$1"$2')  // Add quotes around unquoted string values
-            .replace(/: "(\d+\.?\d*)"(\s*[,}])/g, ': $1$2')  // Remove quotes from numbers
-            .replace(/: "(true|false|null)"(\s*[,}])/g, ': $1$2')  // Remove quotes from booleans and null
-            .replace(/\n/g, ' ')  // Replace newlines with spaces
-            .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
-            .trim();
-          
-          console.log('Cleaned JSON text (first 500 chars):', cleanedText.substring(0, 500));
-          
-          return JSON.parse(cleanedText);
-        } catch (cleanError) {
-          console.error('Failed to clean and parse JSON:', cleanError);
+          if (end === -1 || end <= first) return null;
+          let jsonStr = cleaned.slice(first, end + 1);
+          // Remove trailing commas
+          jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+          try {
+            return JSON.parse(jsonStr);
+          } catch (e1) {
+            // As a last resort, escape raw newlines inside strings
+            const escaped = jsonStr.replace(/\r?\n/g, '\\n');
+            return JSON.parse(escaped);
+          }
+        } catch (extractErr) {
+          console.error('Failed to extract JSON:', extractErr);
           return null;
         }
       }
@@ -3210,8 +3344,8 @@ Return ONLY valid JSON with this exact structure:
     const model = vertex.getGenerativeModel({ 
       model: process.env.VERTEX_MODEL || 'gemini-2.5-flash',
       generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
+        temperature: 0.2,
+        maxOutputTokens: 6144,
         responseMimeType: 'application/json'
       }
     });
@@ -3228,19 +3362,26 @@ Return ONLY valid JSON with this exact structure:
         return JSON.parse(text);
       } catch (e) {
         console.error('JSON parse error:', e);
-        console.log('Problematic JSON text:', text.substring(0, 200) + '...');
-        
+        const t = (text || '').replace(/```json|```/g, '').trim();
+        console.log('Problematic JSON text:', t.substring(0, 200) + '...');
         try {
-          const first = text.indexOf('{');
-          const last = text.lastIndexOf('}');
-          if (first !== -1 && last !== -1 && last > first) {
-            const jsonPart = text.slice(first, last + 1);
-            return JSON.parse(jsonPart);
+          const first = t.indexOf('{');
+          if (first === -1) return null;
+          let braceCount = 0;
+          let end = -1;
+          for (let i = first; i < t.length; i++) {
+            const ch = t[i];
+            if (ch === '{') braceCount++;
+            else if (ch === '}') braceCount--;
+            if (braceCount === 0) end = i;
           }
+          if (end === -1 || end <= first) return null;
+          let jsonStr = t.slice(first, end + 1);
+          jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+          return JSON.parse(jsonStr);
         } catch (extractError) {
           console.error('Failed to extract JSON:', extractError);
         }
-        
         return null;
       }
     };
@@ -3411,19 +3552,35 @@ Return ONLY valid JSON with this exact structure:
     if (persistenceMode === 'mongo') {
       try {
         for (const simulation of simulationData.simulations) {
+          // Ensure required fields for schema
+          const safeSimulation = {
+            ...simulation,
+            modes: Array.isArray(simulation.modes) ? simulation.modes : [],
+            completedModes: Array.isArray(simulation.completedModes) ? simulation.completedModes : [],
+            overallProgress: typeof simulation.overallProgress === 'number' ? simulation.overallProgress : 0,
+            estimated_duration: simulation.estimated_duration || '2-4 hours',
+            learning_objectives: simulation.learning_objectives || [
+              'Improve technical skills',
+              'Practice interviews',
+              'Build portfolio'
+            ]
+          };
+
           const simulationDoc = await Simulation.create({
             userId: userId,
             role: detectedRole,
-            simulation: simulation,
-            estimated_duration: simulation.estimated_duration || "2-4 hours",
-            learning_objectives: simulation.learning_objectives || ["Improve technical skills", "Practice interviews", "Build portfolio"],
-            skillsTargeted: simulation.skills,
-            difficulty: simulation.difficulty,
-            generatedAt: new Date(),
+            simulation: safeSimulation,
+            estimated_duration: safeSimulation.estimated_duration,
+            learning_objectives: safeSimulation.learning_objectives,
+            model_used: 'gemini-2.5-flash',
+            started_at: new Date(),
             status: 'active',
             progress: {
-              completedModes: simulation.completedModes,
-              overallProgress: simulation.overallProgress
+              completed_scenarios: [],
+              completed_interviews: [],
+              completed_challenges: [],
+              completed_projects: [],
+              overall_progress: 0
             }
           });
           simulationIds.push(simulationDoc._id);
@@ -4166,6 +4323,23 @@ async function detectRoleFromResume(resumeText) {
       keywords: ['sql', 'python', 'tableau', 'power bi', 'excel', 'statistics', 'data analysis', 'analytics', 'machine learning', 'data visualization', 'etl', 'bigquery', 'pandas', 'numpy', 'data analyst', 'business intelligence'],
       weight: 1
     },
+    'cyber-security': {
+      keywords: [
+        'cyber security', 'cybersecurity', 'information security', 'infosec',
+        'network security', 'siem', 'splunk', 'qradar', 'elastic security',
+        'ids', 'ips', 'intrusion detection', 'intrusion prevention',
+        'incident response', 'ir', 'blue team', 'red team', 'soc', 'soc analyst',
+        'vulnerability management', 'vulnerability scanning', 'nessus', 'nmap', 'burp suite',
+        'penetration testing', 'pentest', 'owasp', 'threat hunting', 'threat modeling',
+        'malware analysis', 'digital forensics', 'dfir', 'kali linux', 'metasploit',
+        'siem engineer', 'security analyst', 'security engineer', 'risk management',
+        'nist', 'iso 27001', 'gdpr', 'hipaa', 'pci dss',
+        'iam', 'identity and access management', 'mfa', 'sso',
+        'firewall', 'waf', 'edr', 'xdr', 'crowdstrike', 'sentinelone', 'defender',
+        'zero trust', 'vpn', 'ssl', 'tls', 'encryption', 'hashing'
+      ],
+      weight: 2
+    },
     'product-manager': {
       keywords: ['product strategy', 'user research', 'analytics', 'roadmapping', 'agile', 'scrum', 'stakeholder management', 'product manager', 'product owner', 'market research', 'competitive analysis', 'a/b testing'],
       weight: 1
@@ -4266,6 +4440,7 @@ async function analyzeResumeIntelligently(resumeText, jdText, target_role) {
   const roleRequirements = {
     'software-engineer': ['Python', 'Docker', 'AWS', 'Machine Learning', 'Kubernetes', 'CI/CD'],
     'data-analyst': ['Python', 'SQL', 'Tableau', 'Statistics', 'Machine Learning', 'Excel'],
+    'cyber-security': ['Linux', 'Networking', 'Incident Response', 'Threat Modeling', 'SIEM', 'Cloud Security'],
     'product-manager': ['User Research', 'Analytics', 'Agile', 'Stakeholder Management', 'Excel'],
     'ux-designer': ['Figma', 'User Research', 'Prototyping', 'Accessibility', 'Adobe']
   };
