@@ -45,7 +45,7 @@ function setupGoogleAuth() {
     if (!process.env.VERTEX_LOCATION) {
       process.env.VERTEX_LOCATION = 'us-central1';
     }
-    
+
     // Verify credentials file exists
     const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     if (!fsSync.existsSync(credentialsPath)) {
@@ -53,7 +53,7 @@ function setupGoogleAuth() {
       console.error('Please ensure the service account key file exists and is accessible');
       return false;
     }
-    
+
     console.log('✅ Google Cloud authentication configured');
     console.log('📁 Credentials file:', credentialsPath);
     console.log('🏗️ Project ID:', process.env.VERTEX_PROJECT_ID);
@@ -81,7 +81,7 @@ const allowAll = parsedOrigins.length === 1 && (parsedOrigins[0].toLowerCase() =
 
 // Build a single CORS options object used for both middleware and preflight
 const corsOptions = {
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow non-browser requests (no origin) and same-origin
     if (!origin) return callback(null, true);
     if (allowAll) return callback(null, origin);
@@ -89,8 +89,8 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','x-user-id'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
   optionsSuccessStatus: 204
 };
 
@@ -106,26 +106,26 @@ function createVertexAIInstance() {
     console.warn('⚠️ Google Cloud authentication not properly configured');
     return null;
   }
-  
+
   try {
     const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     const location = process.env.VERTEX_LOCATION || 'us-central1';
     const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './new/career-companion-472510-c0aa769face2.json';
     const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-    
+
     // Try with explicit keyFile first
     try {
-      return new VertexAI({ 
-        project, 
-        location, 
-        googleAuthOptions: { keyFile: credentialsPath } 
+      return new VertexAI({
+        project,
+        location,
+        googleAuthOptions: { keyFile: credentialsPath }
       });
     } catch (keyFileError) {
       console.warn('⚠️ Key file authentication failed, trying Application Default Credentials...');
       // Fallback to ADC
       try {
-        return new VertexAI({ 
-          project, 
+        return new VertexAI({
+          project,
           location
         });
       } catch (adcError) {
@@ -153,7 +153,7 @@ try {
   } else {
     console.warn('AI Mentor services disabled due to authentication issues');
   }
-  
+
   // Always initialize fallback AI service
   fallbackAIService = new FallbackAIService();
   console.log('Fallback AI service initialized');
@@ -176,7 +176,7 @@ const MONGO_DB = process.env.MONGO_DB || 'career-companion';
 if (MONGO_URI) {
   console.log('Attempting to connect to MongoDB Atlas...');
   mongoose
-    .connect(MONGO_URI, { 
+    .connect(MONGO_URI, {
       dbName: MONGO_DB
     })
     .then(() => {
@@ -196,8 +196,8 @@ if (MONGO_URI) {
 }
 
 // Multer tmp storage - use system temp directory with enhanced file support
-const upload = multer({ 
-  dest: path.join(process.cwd(), 'temp'), 
+const upload = multer({
+  dest: path.join(process.cwd(), 'temp'),
   limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB for larger files
   fileFilter: (req, file, cb) => {
     // Support multiple file types
@@ -213,7 +213,7 @@ const upload = multer({
       'text/plain',
       'application/rtf'
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -711,8 +711,8 @@ const JOB_DATABASE = {
 };
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     persistence: persistenceMode,
     mongoConnected: persistenceMode === 'mongo',
@@ -724,22 +724,22 @@ app.get('/health', (req, res) => {
 app.get('/test-ai', async (req, res) => {
   try {
     if (!googleAuthReady) {
-      return res.status(503).json({ 
-        error: 'AI features not available', 
-        reason: 'Google Cloud authentication not configured' 
+      return res.status(503).json({
+        error: 'AI features not available',
+        reason: 'Google Cloud authentication not configured'
       });
     }
-    
+
     const vertex = createVertexAIInstance();
     if (!vertex) {
-      return res.status(503).json({ 
-        error: 'AI features not available', 
-        reason: 'Google Cloud authentication failed' 
+      return res.status(503).json({
+        error: 'AI features not available',
+        reason: 'Google Cloud authentication failed'
       });
     }
-    
+
     const model = vertex.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
+
     let result;
     try {
       result = await model.generateContent({
@@ -747,25 +747,25 @@ app.get('/test-ai', async (req, res) => {
         generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
       });
     } catch (aiError) {
-      return res.status(500).json({ 
-        error: 'AI features not working', 
+      return res.status(500).json({
+        error: 'AI features not working',
         reason: 'AI generation failed: ' + aiError.message,
         timestamp: new Date().toISOString()
       });
     }
-    
+
     const response = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    res.json({ 
-      status: 'AI features working', 
+
+    res.json({
+      status: 'AI features working',
       response: response,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('AI test failed:', error.message);
-    res.status(500).json({ 
-      error: 'AI features not working', 
+    res.status(500).json({
+      error: 'AI features not working',
       reason: error.message,
       timestamp: new Date().toISOString()
     });
@@ -785,14 +785,14 @@ app.get('/test-templates', (_req, res) => {
 app.post('/test-job-matching', async (req, res) => {
   try {
     const { role, skills } = req.body;
-    
+
     if (!role || !skills) {
       return res.status(400).json({ error: 'Missing required fields: role, skills' });
     }
 
     console.log('Testing job matching with:', { role, skills });
     const jobMatches = findJobMatches(role, skills);
-    
+
     res.json({
       success: true,
       role: role,
@@ -802,9 +802,9 @@ app.post('/test-job-matching', async (req, res) => {
     });
   } catch (err) {
     console.error('Job matching test error:', err);
-    res.status(500).json({ 
-      error: 'Job matching test failed', 
-      details: err.message 
+    res.status(500).json({
+      error: 'Job matching test failed',
+      details: err.message
     });
   }
 });
@@ -817,34 +817,34 @@ app.post('/test-job-matching', async (req, res) => {
 app.post('/optimize-resume', async (req, res) => {
   try {
     const { resumeText, targetRole, jobDescriptions = [] } = req.body;
-    
+
     if (!resumeText || !targetRole) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeText, targetRole' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeText, targetRole'
       });
     }
-    
+
     let optimization;
     try {
       optimization = await resumeOptimizer.optimizeResume(
-        resumeText, 
-        targetRole, 
+        resumeText,
+        targetRole,
         jobDescriptions
       );
     } catch (error) {
       console.warn('Resume optimizer failed, using fallback:', error.message);
       optimization = await fallbackAIService.generateResumeOptimization(
-        resumeText, 
-        targetRole, 
+        resumeText,
+        targetRole,
         jobDescriptions
       );
     }
-    
+
     res.json({
       success: true,
       ...optimization
     });
-    
+
   } catch (error) {
     console.error('Resume optimization failed:', error);
     res.status(500).json({
@@ -859,24 +859,24 @@ app.post('/optimize-resume', async (req, res) => {
 app.post('/generate-cover-letter', async (req, res) => {
   try {
     const { resumeData, jobDescription, companyName } = req.body;
-    
+
     if (!resumeData || !jobDescription || !companyName) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeData, jobDescription, companyName' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeData, jobDescription, companyName'
       });
     }
-    
+
     const coverLetter = await resumeOptimizer.generateCoverLetter(
-      resumeData, 
-      jobDescription, 
+      resumeData,
+      jobDescription,
       companyName
     );
-    
+
     res.json({
       success: true,
       ...coverLetter
     });
-    
+
   } catch (error) {
     console.error('Cover letter generation failed:', error);
     res.status(500).json({
@@ -891,23 +891,23 @@ app.post('/generate-cover-letter', async (req, res) => {
 app.post('/calculate-ats-score', async (req, res) => {
   try {
     const { resumeText, jobDescription } = req.body;
-    
+
     if (!resumeText || !jobDescription) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeText, jobDescription' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeText, jobDescription'
       });
     }
-    
+
     const atsAnalysis = await resumeOptimizer.calculateATSScore(
-      resumeText, 
+      resumeText,
       jobDescription
     );
-    
+
     res.json({
       success: true,
       ...atsAnalysis
     });
-    
+
   } catch (error) {
     console.error('ATS score calculation failed:', error);
     res.status(500).json({
@@ -922,26 +922,26 @@ app.post('/calculate-ats-score', async (req, res) => {
 app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
   try {
     const { targetRole, jobDescription, companyName } = req.body;
-    
+
     if (!req.file) {
-      return res.status(400).json({ 
-        error: 'No file uploaded. Please upload a PDF, Word, or image file.' 
+      return res.status(400).json({
+        error: 'No file uploaded. Please upload a PDF, Word, or image file.'
       });
     }
-    
+
     if (!targetRole) {
-      return res.status(400).json({ 
-        error: 'Missing required field: targetRole' 
+      return res.status(400).json({
+        error: 'Missing required field: targetRole'
       });
     }
-    
+
     // Validate file format
     const validation = multiFormatParser.validateFile(
-      req.file.originalname, 
-      req.file.mimetype, 
+      req.file.originalname,
+      req.file.mimetype,
       req.file.size
     );
-    
+
     if (!validation.valid) {
       // Clean up uploaded file
       try {
@@ -949,20 +949,20 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
       } catch (cleanupError) {
         console.warn('Failed to cleanup invalid file:', cleanupError);
       }
-      
-      return res.status(400).json({ 
-        error: validation.error 
+
+      return res.status(400).json({
+        error: validation.error
       });
     }
-    
+
     console.log(`Processing ${validation.fileType} file: ${req.file.originalname}`);
-    
+
     // Parse file content
     let resumeText;
     try {
       resumeText = await multiFormatParser.parseFile(
-        req.file.path, 
-        req.file.originalname, 
+        req.file.path,
+        req.file.originalname,
         req.file.mimetype
       );
     } catch (parseError) {
@@ -972,13 +972,13 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
       } catch (cleanupError) {
         console.warn('Failed to cleanup file after parse error:', cleanupError);
       }
-      
+
       return res.status(400).json({
         error: 'File parsing failed: ' + parseError.message,
         suggestion: 'Try converting your file to PDF format or enter text manually'
       });
     }
-    
+
     if (!resumeText || resumeText.trim().length < 50) {
       console.warn('Insufficient extracted content; using fallback text for optimization');
       const fallbackBasics = [
@@ -991,16 +991,16 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
       const fallbackEducation = `Education: B.S. in Computer Science`;
       resumeText = [fallbackBasics, fallbackSkills, fallbackExperience, fallbackEducation].join('\n\n');
     }
-    
+
     console.log(`Extracted ${resumeText.length} characters from ${validation.fileType} file`);
-    
+
     // Optimize resume
     const optimization = await resumeOptimizer.optimizeResume(
-      resumeText, 
-      targetRole, 
+      resumeText,
+      targetRole,
       jobDescription ? [jobDescription] : []
     );
-    
+
     // Generate cover letter if company name provided
     let coverLetter = null;
     if (companyName && jobDescription) {
@@ -1018,7 +1018,7 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
         console.warn('Cover letter generation failed:', coverLetterError);
       }
     }
-    
+
     // Calculate ATS score if job description provided
     let atsAnalysis = null;
     if (jobDescription) {
@@ -1028,14 +1028,14 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
         console.warn('ATS analysis failed:', atsError);
       }
     }
-    
+
     // Clean up uploaded file
     try {
       await fs.unlink(req.file.path);
     } catch (cleanupError) {
       console.warn('Failed to cleanup processed file:', cleanupError);
     }
-    
+
     res.json({
       success: true,
       file_info: {
@@ -1049,10 +1049,10 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
       cover_letter: coverLetter,
       ats_analysis: atsAnalysis
     });
-    
+
   } catch (error) {
     console.error('File-based resume optimization failed:', error);
-    
+
     // Clean up uploaded file on error
     if (req.file?.path) {
       try {
@@ -1061,7 +1061,7 @@ app.post('/optimize-resume-file', upload.single('file'), async (req, res) => {
         console.warn('Failed to cleanup file after error:', cleanupError);
       }
     }
-    
+
     res.status(500).json({
       success: false,
       error: 'File-based resume optimization failed',
@@ -1094,34 +1094,34 @@ app.get('/optimizer/supported-formats', (req, res) => {
 app.post('/predict-career-trajectory', async (req, res) => {
   try {
     const { resumeData, targetRole, timeframe = '5-years' } = req.body;
-    
+
     if (!resumeData || !targetRole) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeData, targetRole' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeData, targetRole'
       });
     }
-    
+
     let trajectory;
     try {
       trajectory = await careerTrajectoryPredictor.predictCareerTrajectory(
-        resumeData, 
-        targetRole, 
+        resumeData,
+        targetRole,
         timeframe
       );
     } catch (error) {
       console.warn('Career trajectory predictor failed, using fallback:', error.message);
       trajectory = await fallbackAIService.generateCareerTrajectory(
-        resumeData, 
-        targetRole, 
+        resumeData,
+        targetRole,
         timeframe
       );
     }
-    
+
     res.json({
       success: true,
       ...trajectory
     });
-    
+
   } catch (error) {
     console.error('Career trajectory prediction failed:', error);
     res.status(500).json({
@@ -1136,24 +1136,24 @@ app.post('/predict-career-trajectory', async (req, res) => {
 app.post('/predict-salary', async (req, res) => {
   try {
     const { role, location = 'Remote', experienceLevel = 'Mid' } = req.body;
-    
+
     if (!role) {
-      return res.status(400).json({ 
-        error: 'Missing required field: role' 
+      return res.status(400).json({
+        error: 'Missing required field: role'
       });
     }
-    
+
     const salaryPrediction = await careerTrajectoryPredictor.generateSalaryPredictions(
-      role, 
-      location, 
+      role,
+      location,
       experienceLevel
     );
-    
+
     res.json({
       success: true,
       ...salaryPrediction
     });
-    
+
   } catch (error) {
     console.error('Salary prediction failed:', error);
     res.status(500).json({
@@ -1168,20 +1168,20 @@ app.post('/predict-salary', async (req, res) => {
 app.post('/market/skill-trends', async (req, res) => {
   try {
     const { skills } = req.body;
-    
+
     if (!skills || !Array.isArray(skills)) {
-      return res.status(400).json({ 
-        error: 'Missing required field: skills (array)' 
+      return res.status(400).json({
+        error: 'Missing required field: skills (array)'
       });
     }
-    
+
     const skillTrends = await marketIntelligenceService.getSkillDemandTrends(skills);
-    
+
     res.json({
       success: true,
       ...skillTrends
     });
-    
+
   } catch (error) {
     console.error('Skill trends analysis failed:', error);
     res.status(500).json({
@@ -1197,14 +1197,14 @@ app.get('/market/company-trends', async (req, res) => {
   try {
     const { companies } = req.query;
     const companyList = companies ? companies.split(',') : [];
-    
+
     const companyTrends = await marketIntelligenceService.getCompanyHiringTrends(companyList);
-    
+
     res.json({
       success: true,
       ...companyTrends
     });
-    
+
   } catch (error) {
     console.error('Company trends analysis failed:', error);
     res.status(500).json({
@@ -1219,20 +1219,20 @@ app.get('/market/company-trends', async (req, res) => {
 app.post('/market/comprehensive-report', async (req, res) => {
   try {
     const { userProfile } = req.body;
-    
+
     if (!userProfile) {
-      return res.status(400).json({ 
-        error: 'Missing required field: userProfile' 
+      return res.status(400).json({
+        error: 'Missing required field: userProfile'
       });
     }
-    
+
     const marketReport = await marketIntelligenceService.generateMarketReport(userProfile);
-    
+
     res.json({
       success: true,
       ...marketReport
     });
-    
+
   } catch (error) {
     console.error('Market report generation failed:', error);
     res.status(500).json({
@@ -1250,25 +1250,25 @@ app.post('/market/comprehensive-report', async (req, res) => {
 // Main mentor chat endpoint
 app.post('/mentor', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
-    const { 
-      userId, 
-      sessionId, 
-      message, 
-      resumeText, 
-      jobDescription, 
-      userProfile = {} 
+    const {
+      userId,
+      sessionId,
+      message,
+      resumeText,
+      jobDescription,
+      userProfile = {}
     } = req.body;
-    
+
     if (!userId || !message) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: userId, message' 
+      return res.status(400).json({
+        error: 'Missing required fields: userId, message'
       });
     }
-    
+
     let response;
-    
+
     // Try mentor service first, fallback to AI service if unavailable
     if (mentorService) {
       try {
@@ -1298,7 +1298,7 @@ app.post('/mentor', async (req, res) => {
         'general'
       );
     }
-    
+
     // Track telemetry if available
     if (telemetryService) {
       telemetryService.trackMentorInteraction(
@@ -1310,15 +1310,15 @@ app.post('/mentor', async (req, res) => {
         true
       );
     }
-    
+
     res.json({
       success: true,
       ...response
     });
-    
+
   } catch (error) {
     console.error('Mentor request failed:', error);
-    
+
     // Track error if telemetry is available
     if (telemetryService) {
       telemetryService.trackError('mentor_request_failed', error.message, {
@@ -1326,7 +1326,7 @@ app.post('/mentor', async (req, res) => {
         message: req.body.message?.substring(0, 100)
       });
     }
-    
+
     res.status(500).json({
       success: false,
       error: 'Mentor request failed',
@@ -1343,22 +1343,22 @@ app.post('/mentor', async (req, res) => {
 // Simulation endpoint
 app.post('/simulation', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
-    const { 
-      userId, 
-      language, 
-      code, 
-      testCases, 
-      templateId 
+    const {
+      userId,
+      language,
+      code,
+      testCases,
+      templateId
     } = req.body;
-    
+
     if (!userId || !language || !code) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: userId, language, code' 
+      return res.status(400).json({
+        error: 'Missing required fields: userId, language, code'
       });
     }
-    
+
     // Get test cases from template if not provided
     let finalTestCases = testCases;
     if (templateId && !testCases) {
@@ -1368,13 +1368,13 @@ app.post('/simulation', async (req, res) => {
         finalTestCases = template.testCases;
       }
     }
-    
+
     if (!finalTestCases || finalTestCases.length === 0) {
-      return res.status(400).json({ 
-        error: 'No test cases provided' 
+      return res.status(400).json({
+        error: 'No test cases provided'
       });
     }
-    
+
     // Run simulation
     const results = await simulationService.runSimulation({
       userId,
@@ -1382,7 +1382,7 @@ app.post('/simulation', async (req, res) => {
       code,
       testCases: finalTestCases
     });
-    
+
     // Track telemetry
     telemetryService.trackSimulationCompletion(
       userId,
@@ -1392,21 +1392,21 @@ app.post('/simulation', async (req, res) => {
       results.executionTime,
       results.success
     );
-    
+
     res.json({
       success: true,
       ...results
     });
-    
+
   } catch (error) {
     console.error('Simulation failed:', error);
-    
+
     // Track error
     telemetryService.trackError('simulation_failed', error.message, {
       userId: req.body.userId,
       language: req.body.language
     });
-    
+
     res.status(500).json({
       success: false,
       error: 'Simulation failed',
@@ -1440,7 +1440,7 @@ app.get('/simulation/templates', (req, res) => {
 app.get('/badges/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     // This would typically query your database
     // For now, return mock data
     const badges = [
@@ -1451,7 +1451,7 @@ app.get('/badges/:userId', async (req, res) => {
         earnedAt: new Date().toISOString()
       }
     ];
-    
+
     res.json({
       success: true,
       badges
@@ -1470,7 +1470,7 @@ app.get('/admin/metrics', (req, res) => {
   try {
     const metrics = telemetryService.getMetricsSummary();
     const performance = telemetryService.getPerformanceMetrics();
-    
+
     res.json({
       success: true,
       metrics,
@@ -1490,7 +1490,7 @@ app.get('/admin/activity/:userId', (req, res) => {
   try {
     const { userId } = req.params;
     const activity = telemetryService.getUserActivity(userId);
-    
+
     res.json({
       success: true,
       activity
@@ -1513,16 +1513,16 @@ app.get('/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { limit = 10 } = req.query;
-    
+
     if (!mentorService) {
       return res.status(503).json({
         success: false,
         error: 'Mentor service unavailable'
       });
     }
-    
+
     const conversations = await mentorService.getRecentConversations(userId, parseInt(limit));
-    
+
     res.json({
       success: true,
       conversations
@@ -1540,23 +1540,23 @@ app.get('/conversations/:userId', async (req, res) => {
 app.get('/conversations/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
+
     if (!mentorService) {
       return res.status(503).json({
         success: false,
         error: 'Mentor service unavailable'
       });
     }
-    
+
     const conversation = await mentorService.getConversationBySession(sessionId);
-    
+
     if (!conversation) {
       return res.status(404).json({
         success: false,
         error: 'Conversation not found'
       });
     }
-    
+
     res.json({
       success: true,
       conversation
@@ -1575,16 +1575,16 @@ app.get('/user/:userId/history', async (req, res) => {
   try {
     const { userId } = req.params;
     const { days = 30 } = req.query;
-    
+
     if (!mentorService) {
       return res.status(503).json({
         success: false,
         error: 'Mentor service unavailable'
       });
     }
-    
+
     const history = await mentorService.getUserHistory(userId, parseInt(days));
-    
+
     res.json({
       success: true,
       history
@@ -1602,16 +1602,16 @@ app.get('/user/:userId/history', async (req, res) => {
 app.get('/user/:userId/stats', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     if (!mentorService) {
       return res.status(503).json({
         success: false,
         error: 'Mentor service unavailable'
       });
     }
-    
+
     const stats = await mentorService.getUserStats(userId);
-    
+
     res.json({
       success: true,
       stats
@@ -1629,14 +1629,14 @@ app.get('/user/:userId/stats', async (req, res) => {
 app.get('/admin/conversations/analytics', async (req, res) => {
   try {
     const { days = 7 } = req.query;
-    
+
     // Get popular intents
     const popularIntents = await UserInteraction.getPopularIntents(parseInt(days));
-    
+
     // Get overall conversation stats
     const totalConversations = await MentorConversation.countDocuments();
     const totalInteractions = await UserInteraction.countDocuments();
-    
+
     res.json({
       success: true,
       analytics: {
@@ -1674,7 +1674,7 @@ app.post('/test-pdf-parsing', upload.single('file'), async (req, res) => {
     const filename = req.file.originalname;
     const mimetype = req.file.mimetype;
     const fileExtension = path.extname(filename).toLowerCase();
-    
+
     // Use shared multi-format parser with graceful fallbacks (works in Docker and local)
     let resumeText = '';
     try {
@@ -1683,7 +1683,7 @@ app.post('/test-pdf-parsing', upload.single('file'), async (req, res) => {
       // Fallback: attempt direct read for text-like files
       try {
         resumeText = await fs.readFile(filePath, 'utf8');
-      } catch {}
+      } catch { }
     }
 
     // If extraction failed or too short, synthesize minimal resume text to keep endpoint working
@@ -1718,19 +1718,19 @@ Return only the role name, nothing else.`;
         contents: [{ role: 'user', parts: [{ text: roleDetectionPrompt }] }],
         generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
       });
-      
+
       const geminiDetectedRole = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-      detectedRole = ['software-engineer', 'data-analyst', 'product-manager', 'ux-designer'].includes(geminiDetectedRole) 
-        ? geminiDetectedRole 
+      detectedRole = ['software-engineer', 'data-analyst', 'product-manager', 'ux-designer'].includes(geminiDetectedRole)
+        ? geminiDetectedRole
         : await detectRoleFromResume(resumeText); // Fallback to keyword matching
       console.log(`Gemini detected role in test: ${detectedRole}`);
     } catch (error) {
       console.log('Gemini role detection failed in test, using keyword fallback:', error.message);
       detectedRole = await detectRoleFromResume(resumeText);
     }
-    
+
     // Cleanup
-    await fs.unlink(filePath).catch(()=>{});
+    await fs.unlink(filePath).catch(() => { });
 
     res.json({
       success: true,
@@ -1747,9 +1747,9 @@ Return only the role name, nothing else.`;
     });
   } catch (err) {
     console.error('PDF parsing test error:', err);
-    res.status(500).json({ 
-      error: 'PDF parsing test failed', 
-      details: err.message 
+    res.status(500).json({
+      error: 'PDF parsing test failed',
+      details: err.message
     });
   }
 });
@@ -1762,7 +1762,7 @@ app.post('/auto-detect-role', upload.single('file'), async (req, res) => {
     // Extract text from uploaded file
     const filePath = req.file.path;
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
-    
+
     let resumeText;
     if (fileExtension === '.pdf') {
       const originalWarn = console.warn;
@@ -1783,9 +1783,9 @@ app.post('/auto-detect-role', upload.single('file'), async (req, res) => {
 
     // Detect role from resume content
     const detectedRole = await detectRoleFromResume(resumeText);
-    
+
     // Cleanup
-    await fs.unlink(filePath).catch(()=>{});
+    await fs.unlink(filePath).catch(() => { });
 
     return res.json({
       detected_role: detectedRole,
@@ -1793,21 +1793,21 @@ app.post('/auto-detect-role', upload.single('file'), async (req, res) => {
     });
   } catch (err) {
     console.error('Auto-detect role error:', err);
-    return res.status(500).json({ 
-      error: 'Auto-detection failed', 
-      details: err.message 
+    return res.status(500).json({
+      error: 'Auto-detection failed',
+      details: err.message
     });
   }
 });
 
 app.post('/upload_resume', upload.single('file'), async (req, res) => {
   try {
-    console.log('Upload request received:', { 
-      hasFile: !!req.file, 
+    console.log('Upload request received:', {
+      hasFile: !!req.file,
       targetRole: req.body?.target_role,
       userId: req.headers['x-user-id'] || 'anonymous'
     });
-    
+
     const userId = req.headers['x-user-id'] || 'anonymous';
     const { target_role } = req.body;
     console.log('Received target_role:', target_role);
@@ -1821,7 +1821,7 @@ app.post('/upload_resume', upload.single('file'), async (req, res) => {
     // Extract text
     const filePath = req.file.path;
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
-    
+
     let resumeText;
     if (fileExtension === '.pdf') {
       // Suppress noisy pdf parsing warnings like: "Warning: TT: undefined function: 32"
@@ -1867,7 +1867,7 @@ Return only the role name, nothing else.`;
           contents: [{ role: 'user', parts: [{ text: roleDetectionPrompt }] }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 50 }
         });
-        
+
         let detectedRole = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
         // Normalize common variations (spaces/underscores -> hyphens)
         if (detectedRole) {
@@ -1889,7 +1889,7 @@ Return only the role name, nothing else.`;
     const jdText = JD_TEMPLATES[finalTargetRole];
     console.log(`JD Template available: ${!!jdText}`);
     let analysis;
-    
+
     try {
       // Prefer Enhanced RAG with external sources and retrieval
       console.log('Using Enhanced RAG for analysis...');
@@ -1948,7 +1948,7 @@ Return only the role name, nothing else.`;
     }
 
     // Cleanup
-    await fs.unlink(filePath).catch(()=>{});
+    await fs.unlink(filePath).catch(() => { });
 
     return res.json({
       id,
@@ -1960,10 +1960,10 @@ Return only the role name, nothing else.`;
   } catch (err) {
     console.error('Upload error:', err);
     console.error('Error stack:', err.stack);
-    return res.status(500).json({ 
-      error: 'Server error', 
+    return res.status(500).json({
+      error: 'Server error',
       details: err.message,
-      stack: err.stack 
+      stack: err.stack
     });
   }
 });
@@ -1971,16 +1971,16 @@ Return only the role name, nothing else.`;
 // Enhanced file analysis endpoint with deeper insights
 app.post('/analyze-file', upload.single('file'), async (req, res) => {
   try {
-    console.log('Enhanced file analysis request received:', { 
-      hasFile: !!req.file, 
+    console.log('Enhanced file analysis request received:', {
+      hasFile: !!req.file,
       fileType: req.file?.mimetype,
       fileName: req.file?.originalname,
       userId: req.headers['x-user-id'] || 'anonymous'
     });
-    
+
     const userId = req.headers['x-user-id'] || 'anonymous';
     const { analysisType = 'comprehensive' } = req.body;
-    
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -1988,10 +1988,10 @@ app.post('/analyze-file', upload.single('file'), async (req, res) => {
     const filePath = req.file.path;
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
     const fileName = req.file.originalname;
-    
+
     let fileContent = '';
     let fileType = 'unknown';
-    
+
     // Enhanced file parsing based on type
     if (fileExtension === '.pdf') {
       try {
@@ -2046,17 +2046,17 @@ app.post('/analyze-file', upload.single('file'), async (req, res) => {
 
     // Initialize mentor service for file analysis
     const mentorService = new (await import('./services/mentor-service.js')).default();
-    
+
     // Perform enhanced file analysis
     const fileAnalysis = await mentorService.analyzeFileContent(
-      fileContent, 
-      fileType, 
-      fileName, 
+      fileContent,
+      fileType,
+      fileName,
       userId
     );
 
     // Cleanup
-    await fs.unlink(filePath).catch(() => {});
+    await fs.unlink(filePath).catch(() => { });
 
     return res.json({
       success: true,
@@ -2070,9 +2070,9 @@ app.post('/analyze-file', upload.single('file'), async (req, res) => {
 
   } catch (error) {
     console.error('Enhanced file analysis error:', error);
-    return res.status(500).json({ 
-      error: 'File analysis failed', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'File analysis failed',
+      details: error.message
     });
   }
 });
@@ -2085,19 +2085,19 @@ app.get('/conversation-history/:userId', async (req, res) => {
       persistenceMode,
       mongoState: mongoose.connection.readyState
     });
-    
+
     const { userId } = req.params;
     const { limit = 10, sessionId } = req.query;
-    
+
     let conversations = [];
     let usedMongoDB = false;
-    
+
     // Try MongoDB first if connected
     if (persistenceMode === 'mongo' && mongoose.connection.readyState === 1) {
       try {
         console.log('📊 Trying MongoDB Atlas for conversation history');
         const mentorService = new (await import('./services/mentor-service.js')).default();
-        
+
         if (sessionId) {
           // Get specific session
           console.log('🔍 Looking for specific session in MongoDB:', sessionId);
@@ -2107,13 +2107,13 @@ app.get('/conversation-history/:userId', async (req, res) => {
           // Get recent conversations for user
           console.log('📋 Getting recent conversations from MongoDB for user:', userId, 'limit:', limit);
           conversations = await mentorService.getRecentConversations(userId, parseInt(limit));
-          
+
           // If no conversations found in MongoDB, try to migrate from file storage
           if (conversations.length === 0) {
             console.log('🔄 No conversations in MongoDB, attempting migration from file storage...');
             const migrationResult = await mentorService.migrateFileStorageToMongoDB(userId);
             console.log('Migration result:', migrationResult);
-            
+
             // Try to get conversations again after migration
             if (migrationResult.migrated > 0) {
               conversations = await mentorService.getRecentConversations(userId, parseInt(limit));
@@ -2128,11 +2128,11 @@ app.get('/conversation-history/:userId', async (req, res) => {
         usedMongoDB = false;
       }
     }
-    
+
     // If MongoDB didn't return results or failed, try file storage
     if (conversations.length === 0) {
       console.log('📁 Using file storage for conversation history');
-      
+
       if (sessionId) {
         // Get specific session
         console.log('🔍 Looking for specific session in file storage:', sessionId);
@@ -2144,10 +2144,10 @@ app.get('/conversation-history/:userId', async (req, res) => {
         conversations = await fileStorage.getRecentConversations(userId, parseInt(limit));
       }
     }
-    
+
     console.log('✅ Found conversations:', conversations.length);
     console.log('💾 Used MongoDB:', usedMongoDB, 'Persistence mode:', persistenceMode);
-    
+
     return res.json({
       success: true,
       persistenceMode,
@@ -2169,11 +2169,11 @@ app.get('/conversation-history/:userId', async (req, res) => {
         })) || []
       }))
     });
-    
+
   } catch (error) {
     console.error('❌ Get conversation history error:', error);
-    return res.status(500).json({ 
-      error: 'Failed to get conversation history', 
+    return res.status(500).json({
+      error: 'Failed to get conversation history',
       details: error.message,
       persistenceMode
     });
@@ -2182,8 +2182,8 @@ app.get('/conversation-history/:userId', async (req, res) => {
 
 // Test endpoint to verify server is working
 app.get('/test-conversation-history', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'Conversation history endpoint is working',
     timestamp: new Date().toISOString()
   });
@@ -2193,24 +2193,24 @@ app.get('/test-conversation-history', (req, res) => {
 app.post('/migrate-conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     if (persistenceMode !== 'mongo' || mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         success: false,
         error: 'MongoDB not available for migration'
       });
     }
-    
+
     const mentorService = new (await import('./services/mentor-service.js')).default();
     const result = await mentorService.migrateFileStorageToMongoDB(userId);
-    
+
     res.json({
       success: true,
       message: 'Migration completed',
       result,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('Migration endpoint error:', error);
     res.status(500).json({
@@ -2244,25 +2244,25 @@ app.get('/search-conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { query, limit = 10 } = req.query;
-    
+
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' });
     }
-    
+
     let searchResults = [];
-    
+
     if (persistenceMode === 'mongo') {
       // Use MongoDB Atlas
       const mentorService = new (await import('./services/mentor-service.js')).default();
       const conversations = await mentorService.getRecentConversations(userId, 50);
-      
+
       // Simple text search through conversations
       searchResults = conversations
         .map(conv => {
-          const matchingMessages = conv.messages.filter(msg => 
+          const matchingMessages = conv.messages.filter(msg =>
             msg.content.toLowerCase().includes(query.toLowerCase())
           );
-          
+
           if (matchingMessages.length > 0) {
             return {
               sessionId: conv.sessionId,
@@ -2286,7 +2286,7 @@ app.get('/search-conversations/:userId', async (req, res) => {
       // Use file storage
       searchResults = await fileStorage.searchConversations(userId, query, parseInt(limit));
     }
-    
+
     return res.json({
       success: true,
       query,
@@ -2294,11 +2294,11 @@ app.get('/search-conversations/:userId', async (req, res) => {
       totalFound: searchResults.length,
       persistenceMode
     });
-    
+
   } catch (error) {
     console.error('Search conversations error:', error);
-    return res.status(500).json({ 
-      error: 'Failed to search conversations', 
+    return res.status(500).json({
+      error: 'Failed to search conversations',
       details: error.message,
       persistenceMode
     });
@@ -2369,11 +2369,11 @@ app.post('/analyze-prd', async (req, res) => {
       } catch (e) {
         console.error('JSON parse error:', e);
         // Try to extract JSON from the text
-        const first = t.indexOf('{'); 
+        const first = t.indexOf('{');
         const last = t.lastIndexOf('}');
         if (first === -1 || last === -1 || last <= first) return null;
-        try { 
-          return JSON.parse(t.slice(first, last + 1)); 
+        try {
+          return JSON.parse(t.slice(first, last + 1));
         } catch (extractError) {
           console.error('Failed to extract JSON:', extractError);
           return null;
@@ -2392,16 +2392,16 @@ app.post('/analyze-prd', async (req, res) => {
 app.post('/test-enhanced-rag', async (req, res) => {
   try {
     const { resumeText, jobDescription, role } = req.body;
-    
+
     if (!resumeText || !jobDescription || !role) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeText, jobDescription, role' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeText, jobDescription, role'
       });
     }
 
     console.log('Testing Enhanced RAG with external sources...');
     const analysis = await enhancedRAGAnalyzer.analyzeResumeWithEnhancedRAG(resumeText, jobDescription, role);
-    
+
     return res.json({
       success: true,
       analysis,
@@ -2410,12 +2410,12 @@ app.post('/test-enhanced-rag', async (req, res) => {
       external_sources_used: analysis.external_sources_used,
       chunk_analyses: analysis.chunk_analyses
     });
-    
+
   } catch (error) {
     console.error('Enhanced RAG test error:', error);
-    return res.status(500).json({ 
-      error: 'Enhanced RAG analysis failed', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Enhanced RAG analysis failed',
+      details: error.message
     });
   }
 });
@@ -2424,27 +2424,27 @@ app.post('/test-enhanced-rag', async (req, res) => {
 app.post('/test-rag', async (req, res) => {
   try {
     const { resumeText, jobDescription, role } = req.body;
-    
+
     if (!resumeText || !jobDescription || !role) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: resumeText, jobDescription, role' 
+      return res.status(400).json({
+        error: 'Missing required fields: resumeText, jobDescription, role'
       });
     }
 
     const analysis = await ragAnalyzer.analyzeResumeWithRAG(resumeText, jobDescription, role);
-    
+
     return res.json({
       success: true,
       analysis,
       model_used: analysis.model_used,
       rag_enhanced: analysis.rag_enhanced
     });
-    
+
   } catch (error) {
     console.error('RAG test error:', error);
-    return res.status(500).json({ 
-      error: 'RAG analysis failed', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'RAG analysis failed',
+      details: error.message
     });
   }
 });
@@ -2453,15 +2453,15 @@ app.post('/test-rag', async (req, res) => {
 app.post('/generate-learning-roadmap', async (req, res) => {
   try {
     const { analysisId, role, skillsPresent, skillsMissing, recommendations } = req.body;
-    
+
     if (!role || !skillsPresent || !skillsMissing) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: role, skillsPresent, skillsMissing' 
+      return res.status(400).json({
+        error: 'Missing required fields: role, skillsPresent, skillsMissing'
       });
     }
 
     console.log('Generating learning roadmap with Gemini + RAG...');
-    
+
     // Check if AI features are available
     if (!googleAuthReady) {
       console.warn('⚠️ AI features not available, returning fallback roadmap');
@@ -2479,7 +2479,7 @@ app.post('/generate-learning-roadmap', async (req, res) => {
               }))
             },
             {
-              stage: "Important Skills (3-6 months)", 
+              stage: "Important Skills (3-6 months)",
               skills: skillsMissing.slice(3, 6).map(skill => ({
                 skill: skill,
                 priority: "medium",
@@ -2494,7 +2494,7 @@ app.post('/generate-learning-roadmap', async (req, res) => {
         }
       });
     }
-    
+
     // Build comprehensive prompt for learning roadmap
     const roadmapPrompt = `You are an expert career advisor. Generate a comprehensive learning roadmap for a ${role} role.
 
@@ -2634,7 +2634,7 @@ Return ONLY valid JSON with this structure:
               }))
             },
             {
-              stage: "Important Skills (3-6 months)", 
+              stage: "Important Skills (3-6 months)",
               skills: skillsMissing.slice(3, 6).map(skill => ({
                 skill: skill,
                 priority: "medium",
@@ -2649,7 +2649,7 @@ Return ONLY valid JSON with this structure:
         }
       });
     }
-    
+
     const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
     let result;
@@ -2680,7 +2680,7 @@ Return ONLY valid JSON with this structure:
               }))
             },
             {
-              stage: "Important Skills (3-6 months)", 
+              stage: "Important Skills (3-6 months)",
               skills: skillsMissing.slice(3, 6).map(skill => ({
                 skill: skill,
                 priority: "medium",
@@ -2695,10 +2695,10 @@ Return ONLY valid JSON with this structure:
         }
       });
     }
-    
+
     const roadmapText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('Raw Gemini response (first 1000 chars):', roadmapText.substring(0, 1000));
-    
+
     // Parse JSON response with robust extraction of the largest balanced JSON block
     const safeParse = (text) => {
       try {
@@ -2736,13 +2736,13 @@ Return ONLY valid JSON with this structure:
         }
       }
     };
-    
+
     let roadmapData = safeParse(roadmapText);
-    
+
     // Validate the parsed data structure
     const validateRoadmapData = (data) => {
       if (!data || !data.roadmap) return false;
-      
+
       const stages = ['stage_1_critical_gaps', 'stage_2_important_gaps', 'stage_3_nice_to_have'];
       for (const stage of stages) {
         if (!Array.isArray(data.roadmap[stage])) {
@@ -2750,28 +2750,28 @@ Return ONLY valid JSON with this structure:
           return false;
         }
       }
-      
+
       return true;
     };
-    
+
     if (!validateRoadmapData(roadmapData)) {
       console.log('Roadmap data validation failed, using fallback...');
       roadmapData = null;
     }
-    
+
     // If parsing failed or stages are empty, create fallback data
-    if (!roadmapData || !roadmapData.roadmap || 
-        (!roadmapData.roadmap.stage_1_critical_gaps?.length && 
-         !roadmapData.roadmap.stage_2_important_gaps?.length && 
-         !roadmapData.roadmap.stage_3_nice_to_have?.length)) {
-      
+    if (!roadmapData || !roadmapData.roadmap ||
+      (!roadmapData.roadmap.stage_1_critical_gaps?.length &&
+        !roadmapData.roadmap.stage_2_important_gaps?.length &&
+        !roadmapData.roadmap.stage_3_nice_to_have?.length)) {
+
       console.log('Creating fallback roadmap data from skills gaps...');
-      
+
       // Distribute missing skills across stages
       const criticalSkills = skillsMissing.slice(0, Math.ceil(skillsMissing.length / 3));
       const importantSkills = skillsMissing.slice(Math.ceil(skillsMissing.length / 3), Math.ceil(skillsMissing.length * 2 / 3));
       const niceToHaveSkills = skillsMissing.slice(Math.ceil(skillsMissing.length * 2 / 3));
-      
+
       const createSkillData = (skill, priority, timeline) => ({
         skill: skill,
         gap_level: priority === 'high' ? 'critical' : priority === 'medium' ? 'important' : 'nice_to_have',
@@ -2804,7 +2804,7 @@ Return ONLY valid JSON with this structure:
         ],
         learning_platforms: ['YouTube', 'Coursera', 'Udemy', 'FreeCodeCamp']
       });
-      
+
       roadmapData = {
         roadmap: {
           stage_1_critical_gaps: criticalSkills.map(skill => createSkillData(skill, 'high', '1-2 months')),
@@ -2848,14 +2848,14 @@ Return ONLY valid JSON with this structure:
     try {
       console.log('Enhancing roadmap with YouTube video links...');
       console.log('Roadmap data before enhancement (first 1000 chars):', JSON.stringify(roadmapData, null, 2).substring(0, 1000));
-      
+
       // Check if we have any skills to enhance
       const hasSkills = roadmapData.roadmap && (
         (roadmapData.roadmap.stage_1_critical_gaps && roadmapData.roadmap.stage_1_critical_gaps.length > 0) ||
         (roadmapData.roadmap.stage_2_important_gaps && roadmapData.roadmap.stage_2_important_gaps.length > 0) ||
         (roadmapData.roadmap.stage_3_nice_to_have && roadmapData.roadmap.stage_3_nice_to_have.length > 0)
       );
-      
+
       if (hasSkills) {
         roadmapData = await youtubeService.generateRoadmapVideoLinks(roadmapData);
         console.log('YouTube video links added successfully');
@@ -2878,12 +2878,12 @@ Return ONLY valid JSON with this structure:
       generated_at: new Date().toISOString(),
       stored_in_mongodb: persistenceMode === 'mongo' && !!roadmapId
     });
-    
+
   } catch (error) {
     console.error('Learning roadmap generation error:', error);
-    return res.status(500).json({ 
-      error: 'Learning roadmap generation failed', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Learning roadmap generation failed',
+      details: error.message
     });
   }
 });
@@ -2892,15 +2892,15 @@ Return ONLY valid JSON with this structure:
 app.post('/start-career-simulation', async (req, res) => {
   try {
     const { analysisId, role, skillsPresent, skillsMissing, jobMatches } = req.body;
-    
+
     if (!role || !skillsPresent) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: role, skillsPresent' 
+      return res.status(400).json({
+        error: 'Missing required fields: role, skillsPresent'
       });
     }
 
     console.log('Starting career simulation with Gemini + RAG...');
-    
+
     // Check if AI features are available
     if (!googleAuthReady) {
       console.warn('⚠️ AI features not available, returning fallback simulation');
@@ -2922,7 +2922,7 @@ app.post('/start-career-simulation', async (req, res) => {
               difficulty: "intermediate"
             },
             {
-              id: "scenario_2", 
+              id: "scenario_2",
               title: "Project Planning Meeting",
               description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
               choices: [
@@ -2940,7 +2940,7 @@ app.post('/start-career-simulation', async (req, res) => {
         }
       });
     }
-    
+
     // Build comprehensive prompt for career simulation
     const simulationPrompt = `Create an interactive career simulation for a ${role} role based on the following profile:
 
@@ -3048,7 +3048,7 @@ Return ONLY valid JSON with this structure:
               difficulty: "intermediate"
             },
             {
-              id: "scenario_2", 
+              id: "scenario_2",
               title: "Project Planning Meeting",
               description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
               choices: [
@@ -3066,7 +3066,7 @@ Return ONLY valid JSON with this structure:
         }
       });
     }
-    
+
     const model = vertex.getGenerativeModel({ model: process.env.VERTEX_MODEL || 'gemini-2.5-flash' });
 
     let result;
@@ -3099,7 +3099,7 @@ Return ONLY valid JSON with this structure:
               difficulty: "intermediate"
             },
             {
-              id: "scenario_2", 
+              id: "scenario_2",
               title: "Project Planning Meeting",
               description: "You're leading a project planning meeting. How do you approach organizing the team and setting timelines?",
               choices: [
@@ -3117,9 +3117,9 @@ Return ONLY valid JSON with this structure:
         }
       });
     }
-    
+
     const simulationText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
+
     // Parse JSON response robustly by scanning for balanced structures
     const safeParse = (text) => {
       if (!text || typeof text !== 'string') {
@@ -3169,7 +3169,7 @@ Return ONLY valid JSON with this structure:
       cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
       try { return JSON.parse(cleaned); } catch (_) { return null; }
     };
-    
+
     const simulationData = safeParse(simulationText) || {
       simulation: {
         scenarios: [],
@@ -3223,12 +3223,12 @@ Return ONLY valid JSON with this structure:
       started_at: new Date().toISOString(),
       stored_in_mongodb: persistenceMode === 'mongo' && !!simulationId
     });
-    
+
   } catch (error) {
     console.error('Career simulation generation error:', error);
-    return res.status(500).json({ 
-      error: 'Career simulation generation failed', 
-      details: error.message 
+    return res.status(500).json({
+      error: 'Career simulation generation failed',
+      details: error.message
     });
   }
 });
@@ -3237,21 +3237,21 @@ Return ONLY valid JSON with this structure:
 app.post('/generate-simulations', async (req, res) => {
   try {
     const { userId, resumeAnalysis, role, skillsPresent, skillsMissing } = req.body;
-    
+
     if (!userId || !resumeAnalysis) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: userId, resumeAnalysis' 
+      return res.status(400).json({
+        error: 'Missing required fields: userId, resumeAnalysis'
       });
     }
 
     console.log('Generating simulations based on resume analysis...');
-    
+
     // Extract skills and role information from resume analysis
     const detectedRole = role || resumeAnalysis.role || 'Data Analyst';
     const presentSkills = skillsPresent || resumeAnalysis.skillsPresent || [];
     const missingSkills = skillsMissing || resumeAnalysis.skillsMissing || [];
     const skillsGap = resumeAnalysis.skillsGap || [];
-    
+
     // Build comprehensive prompt for simulation generation
     const simulationPrompt = `Generate personalized career simulations for a ${detectedRole} role based on this resume analysis:
 
@@ -3334,14 +3334,14 @@ Return ONLY valid JSON with this exact structure:
     const location = process.env.VERTEX_LOCATION || 'us-central1';
     const envCred = process.env.GOOGLE_APPLICATION_CREDENTIALS || './career-companion-472510-7dd10b4d4dcb.json';
     const credentialsPath = path.isAbsolute(envCred) ? envCred : path.resolve(__dirname, '../', envCred);
-    
-    const vertex = new VertexAI({ 
-      project, 
-      location, 
-      googleAuthOptions: { keyFile: credentialsPath } 
+
+    const vertex = new VertexAI({
+      project,
+      location,
+      googleAuthOptions: { keyFile: credentialsPath }
     });
-    
-    const model = vertex.getGenerativeModel({ 
+
+    const model = vertex.getGenerativeModel({
       model: process.env.VERTEX_MODEL || 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.2,
@@ -3353,7 +3353,7 @@ Return ONLY valid JSON with this exact structure:
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: simulationPrompt }] }]
     });
-    
+
     const simulationText = result?.response?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     console.log('Generated simulations:', simulationText);
 
@@ -3385,21 +3385,21 @@ Return ONLY valid JSON with this exact structure:
         return null;
       }
     };
-    
+
     let simulationData = safeParse(simulationText);
-    
+
     // If parsing failed, create fallback simulations based on skills gap
     if (!simulationData || !simulationData.simulations) {
       console.log('Creating structured simulations based on skills gap...');
-      
+
       // Create comprehensive simulations based on skill gaps
       const createSimulation = (skill, index) => {
         const skillName = skill.skill;
         const gapLevel = skill.gap;
-        
+
         // Determine simulation type and category based on skill
         let simulationType, category, description, skills;
-        
+
         if (skillName.toLowerCase().includes('python') || skillName.toLowerCase().includes('programming')) {
           simulationType = 'Data Analysis';
           category = 'Data Analysis';
@@ -3426,10 +3426,10 @@ Return ONLY valid JSON with this exact structure:
           description = `Master ${skillName} through comprehensive hands-on challenges and real-world scenarios. Build practical skills for your career.`;
           skills = [skillName, 'Problem Solving', 'Data Analysis', 'Critical Thinking'];
         }
-        
+
         // Determine difficulty based on gap level
         const difficulty = gapLevel > 40 ? 'Advanced' : gapLevel > 20 ? 'Intermediate' : 'Beginner';
-        
+
         return {
           id: `simulation_${index + 1}`,
           title: `${skillName} Mastery Challenge`,
@@ -3488,7 +3488,7 @@ Return ONLY valid JSON with this exact structure:
           ]
         };
       };
-      
+
       simulationData = {
         simulations: skillsGap.slice(0, 4).map((skill, index) => createSimulation(skill, index))
       };
@@ -3515,7 +3515,7 @@ Return ONLY valid JSON with this exact structure:
           ];
         }
       }
-      
+
       // Use YouTube service to enhance video links
       for (const simulation of simulationData.simulations) {
         if (simulation.youtube_videos) {
@@ -3600,7 +3600,7 @@ Return ONLY valid JSON with this exact structure:
       generatedAt: new Date().toISOString(),
       storedInMongoDB: persistenceMode === 'mongo' && simulationIds.length > 0
     });
-    
+
   } catch (error) {
     console.error('Failed to generate simulations:', error);
     return res.status(500).json({
@@ -3615,13 +3615,13 @@ Return ONLY valid JSON with this exact structure:
 app.get('/roadmap/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (persistenceMode === 'mongo') {
       const roadmap = await Roadmap.findById(id);
       if (!roadmap) {
         return res.status(404).json({ error: 'Roadmap not found' });
       }
-      
+
       return res.json({
         success: true,
         roadmap_id: roadmap._id,
@@ -3648,13 +3648,13 @@ app.get('/roadmap/:id', async (req, res) => {
 app.get('/simulation/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (persistenceMode === 'mongo') {
       const simulation = await Simulation.findById(id);
       if (!simulation) {
         return res.status(404).json({ error: 'Simulation not found' });
       }
-      
+
       return res.json({
         success: true,
         simulation_id: simulation._id,
@@ -3683,10 +3683,10 @@ app.get('/simulation/:id', async (req, res) => {
 app.get('/user/:userId/roadmaps', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     if (persistenceMode === 'mongo') {
       const roadmaps = await Roadmap.find({ userId }).sort({ created_at: -1 });
-      
+
       return res.json({
         success: true,
         roadmaps: roadmaps.map(roadmap => ({
@@ -3712,10 +3712,10 @@ app.get('/user/:userId/roadmaps', async (req, res) => {
 app.get('/user/:userId/simulations', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     if (persistenceMode === 'mongo') {
       const simulations = await Simulation.find({ userId }).sort({ created_at: -1 });
-      
+
       return res.json({
         success: true,
         simulations: simulations.map(simulation => ({
@@ -3744,7 +3744,7 @@ app.put('/simulation/:id/progress', async (req, res) => {
   try {
     const { id } = req.params;
     const { completed_scenarios, completed_interviews, completed_challenges, completed_projects, overall_progress } = req.body;
-    
+
     if (persistenceMode === 'mongo') {
       const simulation = await Simulation.findByIdAndUpdate(
         id,
@@ -3760,11 +3760,11 @@ app.put('/simulation/:id/progress', async (req, res) => {
         },
         { new: true }
       );
-      
+
       if (!simulation) {
         return res.status(404).json({ error: 'Simulation not found' });
       }
-      
+
       return res.json({
         success: true,
         simulation_id: simulation._id,
@@ -3914,20 +3914,20 @@ app.post('/generate-skill-roadmap', async (req, res) => {
       } catch (e) {
         console.error('JSON parse error:', e);
         console.log('Problematic JSON text:', text.substring(0, 200) + '...');
-        
+
         // Try to clean and fix common JSON issues
         try {
           let cleanedText = text.trim();
-          
+
           // Remove any text before the first { or [
           const firstBrace = cleanedText.indexOf('{');
           const firstBracket = cleanedText.indexOf('[');
           const start = firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket) ? firstBrace : firstBracket;
-          
+
           if (start !== -1) {
             cleanedText = cleanedText.substring(start);
           }
-          
+
           // Try to fix common issues
           cleanedText = cleanedText
             .replace(/,\s*}/g, '}')  // Remove trailing commas before }
@@ -3936,12 +3936,12 @@ app.post('/generate-skill-roadmap', async (req, res) => {
             .replace(/:\s*([^",{\[\s][^,}\]]*?)(\s*[,}])/g, ': "$1"$2')  // Add quotes around unquoted string values
             .replace(/: "(\d+\.?\d*)"(\s*[,}])/g, ': $1$2')  // Remove quotes from numbers
             .replace(/: "(true|false|null)"(\s*[,}])/g, ': $1$2');  // Remove quotes from booleans and null
-          
+
           return JSON.parse(cleanedText);
         } catch (cleanError) {
           console.error('Failed to clean JSON:', cleanError);
         }
-        
+
         // Try to extract JSON from the text if it's embedded in other content
         try {
           // Find the first complete JSON object by tracking braces
@@ -3950,30 +3950,30 @@ app.post('/generate-skill-roadmap', async (req, res) => {
             start = text.indexOf('[');
             if (start === -1) return null;
           }
-          
+
           let braceCount = 0;
           let inString = false;
           let escapeNext = false;
           let end = -1;
-          
+
           for (let i = start; i < text.length; i++) {
             const char = text[i];
-            
+
             if (escapeNext) {
               escapeNext = false;
               continue;
             }
-            
+
             if (char === '\\') {
               escapeNext = true;
               continue;
             }
-            
+
             if (char === '"' && !escapeNext) {
               inString = !inString;
               continue;
             }
-            
+
             if (!inString) {
               if (char === '{' || char === '[') {
                 braceCount++;
@@ -3986,7 +3986,7 @@ app.post('/generate-skill-roadmap', async (req, res) => {
               }
             }
           }
-          
+
           if (end !== -1) {
             const jsonPart = text.slice(start, end + 1);
             return JSON.parse(jsonPart);
@@ -3994,17 +3994,17 @@ app.post('/generate-skill-roadmap', async (req, res) => {
         } catch (extractError) {
           console.error('Failed to extract JSON:', extractError);
         }
-        
+
         return null;
       }
     };
 
     let roadmapData = safeParse(roadmapText);
-    
+
     // If parsing failed, create fallback data
     if (!roadmapData || !roadmapData.roadmap) {
       console.log('Creating fallback skill roadmap data...');
-      
+
       roadmapData = {
         skill: skill,
         current_level: currentLevel,
@@ -4119,9 +4119,9 @@ app.post('/generate-skill-roadmap', async (req, res) => {
 
   } catch (error) {
     console.error('Skill roadmap generation failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to generate skill roadmap: ' + error.message 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate skill roadmap: ' + error.message
     });
   }
 });
@@ -4130,24 +4130,24 @@ app.post('/generate-skill-roadmap', async (req, res) => {
 app.get('/test-youtube/:query', async (req, res) => {
   try {
     const { query } = req.params;
-    
+
     if (!youtubeService) {
-      return res.status(503).json({ 
-        success: false, 
-        error: 'YouTube service not initialized' 
+      return res.status(503).json({
+        success: false,
+        error: 'YouTube service not initialized'
       });
     }
 
     console.log(`Testing YouTube search for: ${query}`);
     const results = await youtubeService.searchVideosWithDetails(query, 3);
-    
+
     res.json({
       success: true,
       query: query,
       results: results,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('YouTube test error:', error);
     res.status(500).json({
@@ -4163,22 +4163,22 @@ function findJobMatches(role, foundSkills) {
   console.log(`Finding job matches for role: ${role}`);
   console.log(`Found skills: ${foundSkills.join(', ')}`);
   console.log(`Found skills type: ${typeof foundSkills}, length: ${foundSkills?.length}`);
-  
+
   const jobs = JOB_DATABASE[role] || [];
   console.log(`Available jobs for ${role}: ${jobs.length}`);
-  
+
   if (!foundSkills || foundSkills.length === 0) {
     console.log('No skills found for job matching');
     return [];
   }
-  
+
   const matches = [];
-  
+
   for (const job of jobs) {
     // Calculate match percentage based on required and preferred skills
     const requiredSkills = job.requiredSkills || [];
     const preferredSkills = job.preferredSkills || [];
-    
+
     // Enhanced skill matching with better synonym handling
     const skillSynonyms = {
       'rest': ['rest api', 'restful', 'rest apis', 'api'],
@@ -4225,8 +4225,8 @@ function findJobMatches(role, foundSkills) {
       const hasMatch = foundSkills.some(foundSkill => {
         const normalizedFoundSkill = normalizeSkill(foundSkill);
         const isMatch = normalizedFoundSkill === normalizedJobSkill ||
-               normalizedFoundSkill.includes(normalizedJobSkill) ||
-               normalizedJobSkill.includes(normalizedFoundSkill);
+          normalizedFoundSkill.includes(normalizedJobSkill) ||
+          normalizedJobSkill.includes(normalizedFoundSkill);
         if (isMatch) {
           console.log(`✓ Match found: "${foundSkill}" (${normalizedFoundSkill}) matches "${skill}" (${normalizedJobSkill})`);
         }
@@ -4237,31 +4237,31 @@ function findJobMatches(role, foundSkills) {
       }
       return hasMatch;
     }).length;
-    
+
     // Count how many preferred skills the candidate has
     const preferredMatches = preferredSkills.filter(skill => {
       const normalizedJobSkill = normalizeSkill(skill);
       return foundSkills.some(foundSkill => {
         const normalizedFoundSkill = normalizeSkill(foundSkill);
         return normalizedFoundSkill === normalizedJobSkill ||
-               normalizedFoundSkill.includes(normalizedJobSkill) ||
-               normalizedJobSkill.includes(normalizedFoundSkill);
+          normalizedFoundSkill.includes(normalizedJobSkill) ||
+          normalizedJobSkill.includes(normalizedFoundSkill);
       });
     }).length;
-    
+
     // Calculate match percentage (required skills weighted more heavily)
     const requiredWeight = 0.7;
     const preferredWeight = 0.3;
     const totalRequired = requiredSkills.length;
     const totalPreferred = preferredSkills.length;
-    
+
     const matchPercentage = Math.round(
-      ((requiredMatches / Math.max(totalRequired, 1)) * requiredWeight + 
-       (preferredMatches / Math.max(totalPreferred, 1)) * preferredWeight) * 100
+      ((requiredMatches / Math.max(totalRequired, 1)) * requiredWeight +
+        (preferredMatches / Math.max(totalPreferred, 1)) * preferredWeight) * 100
     );
-    
+
     console.log(`Job: ${job.title} - Match: ${matchPercentage}% (Required: ${requiredMatches}/${totalRequired}, Preferred: ${preferredMatches}/${totalPreferred})`);
-    
+
     // Only include jobs with at least 30% match
     if (matchPercentage >= 30) {
       const missingSkills = [...requiredSkills, ...preferredSkills].filter(skill => {
@@ -4269,11 +4269,11 @@ function findJobMatches(role, foundSkills) {
         return !foundSkills.some(foundSkill => {
           const normalizedFoundSkill = normalizeSkill(foundSkill);
           return normalizedFoundSkill === normalizedJobSkill ||
-                 normalizedFoundSkill.includes(normalizedJobSkill) ||
-                 normalizedJobSkill.includes(normalizedFoundSkill);
+            normalizedFoundSkill.includes(normalizedJobSkill) ||
+            normalizedJobSkill.includes(normalizedFoundSkill);
         });
       });
-      
+
       const match = {
         title: job.title,
         company: job.company,
@@ -4285,21 +4285,21 @@ function findJobMatches(role, foundSkills) {
           return [...requiredSkills, ...preferredSkills].some(jobSkill => {
             const normalizedJobSkill = normalizeSkill(jobSkill);
             return normalizedFoundSkill === normalizedJobSkill ||
-                   normalizedFoundSkill.includes(normalizedJobSkill) ||
-                   normalizedJobSkill.includes(normalizedFoundSkill);
+              normalizedFoundSkill.includes(normalizedJobSkill) ||
+              normalizedJobSkill.includes(normalizedFoundSkill);
           });
         }).slice(0, 3), // Top 3 strong points
         description: job.description,
         salary: job.salary
       };
-      
+
       matches.push(match);
       console.log(`Added job match: ${job.title} (${matchPercentage}%)`);
     } else {
       console.log(`Job ${job.title} below 50% threshold (${matchPercentage}%)`);
     }
   }
-  
+
   // Sort by match percentage (highest first) and return top 5
   const finalMatches = matches.sort((a, b) => b.matchPercentage - a.matchPercentage).slice(0, 5);
   console.log(`Final job matches for ${role}: ${finalMatches.length} matches`);
@@ -4312,7 +4312,7 @@ async function detectRoleFromResume(resumeText) {
   const lowerText = resumeText.toLowerCase();
   console.log('Starting role detection for text length:', resumeText.length);
   console.log('Sample text for role detection:', resumeText.substring(0, 200));
-  
+
   // Define role-specific keywords and their weights
   const roleKeywords = {
     'software-engineer': {
@@ -4364,15 +4364,15 @@ async function detectRoleFromResume(resumeText) {
 
   // Find the role with the highest score
   const bestRole = Object.entries(roleScores).reduce((a, b) => roleScores[a[0]] > roleScores[b[0]] ? a : b);
-  
+
   console.log('Role detection scores:', roleScores);
   console.log('Best role match:', bestRole);
-  
+
   // If no clear match, default to software-engineer for technical resumes
   if (bestRole[1] === 0) {
-    const hasTechnicalSkills = lowerText.includes('javascript') || lowerText.includes('python') || 
-                              lowerText.includes('java') || lowerText.includes('programming') ||
-                              lowerText.includes('developer') || lowerText.includes('engineer');
+    const hasTechnicalSkills = lowerText.includes('javascript') || lowerText.includes('python') ||
+      lowerText.includes('java') || lowerText.includes('programming') ||
+      lowerText.includes('developer') || lowerText.includes('engineer');
     console.log('No clear match, has technical skills:', hasTechnicalSkills);
     return hasTechnicalSkills ? 'software-engineer' : 'data-analyst';
   }
@@ -4422,17 +4422,17 @@ async function analyzeResumeIntelligently(resumeText, jdText, target_role) {
 
   const foundSkills = [];
   const lowerText = resumeText.toLowerCase();
-  
+
   console.log('Starting skill extraction for role:', target_role);
   console.log('Resume text length for skill extraction:', resumeText.length);
-  
+
   for (const [skill, keywords] of Object.entries(skillKeywords)) {
     if (keywords.some(keyword => lowerText.includes(keyword))) {
       foundSkills.push(skill);
       console.log(`Found skill: ${skill} (keywords: ${keywords.join(', ')})`);
     }
   }
-  
+
   console.log('Total skills found:', foundSkills.length);
   console.log('Found skills:', foundSkills);
 
@@ -4476,7 +4476,13 @@ async function analyzeResumeIntelligently(resumeText, jdText, target_role) {
   }
 
   // Calculate match score based on found skills vs requirements
-  const matchScore = Math.min(100, Math.round((foundSkills.length / Math.max(requiredSkills.length, 1)) * 100));
+  const foundSkillsCount = Array.isArray(foundSkills) ? foundSkills.length : 0;
+  const requiredSkillsCount = Array.isArray(requiredSkills) ? requiredSkills.length : 1;
+  const matchScore = Math.min(100, Math.round((foundSkillsCount / Math.max(requiredSkillsCount, 1)) * 100));
+
+  // Ensure match score is a valid number
+  const validMatchScore = isNaN(matchScore) ? 0 : matchScore;
+  console.log(`Match score calculation: ${foundSkillsCount}/${requiredSkillsCount} = ${validMatchScore}%`);
 
   // Find job matches for the detected role
   const jobMatches = findJobMatches(target_role, foundSkills);
@@ -4484,17 +4490,17 @@ async function analyzeResumeIntelligently(resumeText, jdText, target_role) {
   console.log('Job matches details:', JSON.stringify(jobMatches, null, 2));
 
   const result = {
-    match_score: matchScore,
-    skills_present: foundSkills,
-    skills_missing: missingSkills,
-    job_matches: jobMatches,
-    recommendations: recommendations.length > 0 ? recommendations : [
+    match_score: validMatchScore,
+    skills_present: Array.isArray(foundSkills) ? foundSkills : [],
+    skills_missing: Array.isArray(missingSkills) ? missingSkills : [],
+    job_matches: Array.isArray(jobMatches) ? jobMatches : [],
+    recommendations: Array.isArray(recommendations) && recommendations.length > 0 ? recommendations : [
       'Continue building experience in your current role',
       'Seek opportunities to work on diverse projects',
       'Consider obtaining relevant certifications'
     ]
   };
-  
+
   console.log('Final analysis result:', JSON.stringify(result, null, 2));
   return result;
 }
@@ -4517,7 +4523,7 @@ app.get('/test-youtube-service', async (req, res) => {
   try {
     const testQuery = 'Python programming tutorial';
     const videos = await youtubeService.searchVideosWithDetails(testQuery, 1);
-    
+
     res.json({
       apiKeyAvailable: !!process.env.YOUTUBE_API_KEY,
       testQuery: testQuery,
